@@ -1,12 +1,23 @@
-class DataGenerator():
+import torch
+from abc import ABC, abstractmethod
+from typing import Any
+
+class DataGenerator(ABC):
     def __init__(self):
         pass
 
-    def timestep(self):
-        return
+    @abstractmethod
+    def timestep(self, *args: Any, **kwargs:Any) -> torch.Tensor:
+        """Override this method in subclasses with your specific parameters."""
+        pass
+
+    @abstractmethod
+    def generate_simulation_run(self, *args: Any, **kwargs:Any)-> torch.Tensor:
+        pass
+
+    @abstractmethod
+    def generate_dataset(self, *args:Any, **kwargs:Any) -> torch.Tensor:
+        pass
     
-    def generate_data(self):
-        return
-    
-    def save_data(self, file_path):
+    def save_data(self, file_path : str):
         return 
