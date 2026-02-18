@@ -1,69 +1,100 @@
+from typing import Any
 import torch
 from .generator import DataGenerator
 from .utils import construct_cyclical_laplacian
+from tqdm import tqdm
 # import h5py
 
 class HeatEquation(DataGenerator):
-    def __init__(self):
-        # self.a: float = a
-        # self.root_m: int = root_m
-        # self.initial_conditions: torch.Tensor = initial_conditions
-        # D: torch.Tensor = construct_cyclical_laplacian(root_m)
-        # mu = a*dt/(2*h**2)
+    """
+    Solves the 2D heat equation on a periodic square grid using the
+    Crank-Nicolson finite difference scheme.
 
-        # self.C = torch.kron(torch.eye(root_m), D) + torch.kron(D, torch.eye(root_m))
-        
-        # A = torch.eye(root_m**2) - mu*self.C
-        # self.A_inv = torch.inverse(A)
-        
-        # self.B = torch.eye(root_m**2) + mu*self.C
+    The heat equation is:  du/dt = a * laplacian(u)
+
+    Spatial discretization uses the Kronecker product of two 1D cyclic
+    Laplacian matrices to form the 2D Laplacian operator C. The
+    Crank-Nicolson update is:
+
+        (I - mu*C) u_{n+1} = (I + mu*C) u_n
+
+    where mu = a * dt / (2 * h^2). This is unconditionally stable and
+    second-order accurate in both space and time.
+    """
+
+    def __init__(self):
         pass
 
     def timestep(self, u_n : torch.Tensor, A_inv : torch.Tensor, B : torch.Tensor) -> torch.Tensor:
         """
-        Performs a single time step for the 2D heat equation.
+        Perform a single Crank-Nicolson time step.
 
-        Parameters:
-        u_n : torch.Tensor : current values for our grid U
+        Computes u_{n+1} = A_inv @ B @ u_n where A = (I - mu*C) and
+        B = (I + mu*C).
+
+        :param u_n: Current solution state, shape (root_m**2, root_m**2).
+        :type u_n: torch.Tensor
+        :param A_inv: Precomputed inverse of the implicit matrix A.
+        :type A_inv: torch.Tensor
+        :param B: The explicit matrix B.
+        :type B: torch.Tensor
+        :returns: Solution state at the next time step.
+        :rtype: torch.Tensor
         """
         u_n = A_inv @ B @ u_n
 
         return u_n
-    
+
     def generate_simulation_run(self, a : float, u_n : torch.Tensor, h:float, time:float, root_m : int, num_steps : int)-> torch.Tensor:
         """
-        Docstring for generate_data
-        
-        :param self: Description
-        :param a: Description
+        Run a full simulation of the 2D heat equation from an initial condition.
+
+        Constructs the Crank-Nicolson matrices from the given physical and grid
+        parameters, then advances the solution for ``num_steps`` time steps,
+        storing the state at each step.
+
+        :param a: Thermal diffusivity coefficient.
         :type a: float
-        :param u_n: Description
+        :param u_n: Initial condition matrix, shape (root_m**2, root_m**2).
         :type u_n: torch.Tensor
-        :param h: Description
+        :param h: Spatial grid spacing (same in x and y).
         :type h: float
-        :param time: Description
+        :param time: Total simulation time.
         :type time: float
-        :param root_m: Description
+        :param root_m: Number of grid points along one spatial dimension.
+            The full grid has root_m**2 interior points.
         :type root_m: int
-        :param num_steps: Description
+        :param num_steps: Number of time steps to take.
         :type num_steps: int
+        :returns: Tensor of shape (num_steps, root_m**2, root_m**2) containing
+            the solution state at each time step.
+        :rtype: torch.Tensor
         """
-        D: torch.Tensor = construct_cyclical_laplacian(root_m)
+        device = torch.device("mps")
+        dtype = torch.float32
+
+        D: torch.Tensor = construct_cyclical_laplacian(root_m).to(device=device, dtype=dtype)
         dt = float(time/num_steps)
 
         mu = a*dt/(2*h**2)
 
-        C = torch.kron(torch.eye(root_m), D) + torch.kron(D, torch.eye(root_m))
-        
-        A_inv  = torch.eye(root_m**2) - mu*C
-        A_inv = torch.inverse(A_inv)
-        B = torch.eye(root_m**2) + mu*C
+        C = torch.kron(torch.eye(root_m, device=device, dtype=dtype), D) + torch.kron(D, torch.eye(root_m,device=device, dtype=dtype))
 
-        simulation_data = torch.zeros((num_steps, root_m**2, root_m**2))
-        simulation_data[0, :, :] = u_n
-        for t in range(1, num_steps):
-            u_n = self.timestep(u_n, A_inv, B)
-            simulation_data[t, :, :] = u_n
+        A_inv  = torch.eye(root_m**2, device=device, dtype=dtype) - mu*C
+        A_inv = torch.inverse(A_inv)
+        B = torch.eye(root_m**2, device=device, dtype=dtype) + mu*C
+
+        simulation_data = torch.zeros((num_steps, root_m, root_m))
+        simulation_data[0, :, :] = u_n.reshape((1, root_m, root_m))
+        u_n = u_n.to(device=device, dtype=dtype).reshape(root_m**2)
+
+        with torch.no_grad():
+            for t in tqdm(range(1, num_steps)):
+                u_n = self.timestep(u_n, A_inv, B)
+                simulation_data[t, :, :] = u_n.reshape((1, root_m, root_m))
 
         return simulation_data
+    
+    def generate_dataset(self, *args: Any, **kwargs: Any) -> torch.Tensor:
+        return super().generate_dataset(*args, **kwargs)
     
