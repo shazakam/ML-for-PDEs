@@ -5,14 +5,15 @@ from utils.visualisation_utils import tensor_to_gif
 data_generator = HeatEquation()
 
 print('Running Test...')
-a = 0.1 
+a = 0.2
 h = 0.1
-time = 40
-root_m = 80
-num_steps = 250
+time = 100
+root_m = 96
+num_steps = 2000
 
 u_n = torch.zeros((root_m, root_m))
-u_n[32:48, 32:48] = 1
+u_n[root_m//2 - root_m//4:root_m//2 + root_m//4, root_m//2 - root_m//4:root_m//2 + root_m//4] = 1
+
 u_n = u_n.flatten()
 
 print('Beginning test simulation')

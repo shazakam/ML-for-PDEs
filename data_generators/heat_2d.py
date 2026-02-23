@@ -92,7 +92,7 @@ class HeatEquation(DataGenerator):
             for t in tqdm(range(1, num_steps)):
                 u_n = self.timestep(u_n, A_inv, B)
                 simulation_data[t, :, :] = u_n.reshape((1, root_m, root_m))
-
+                
         return simulation_data
     
     def generate_dataset(self, *args: Any, **kwargs: Any) -> torch.Tensor:
