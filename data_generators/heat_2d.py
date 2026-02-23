@@ -70,6 +70,10 @@ class HeatEquation(DataGenerator):
             the solution state at each time step.
         :rtype: torch.Tensor
         """
+
+        # TODO: Optimise for GPU - keep everything in matrix format. 
+        # TODO: Instead of constructing Laplacian from scratch just apply a 2D Convolution on grid as a function which adjusts according to different boundary conditions.
+        # TODO: NEED TO IMPLEMENT CONJUGATE GRADIENT METHOD TO INVERT MATRIX IN N steps.
         device = torch.device("mps")
         dtype = torch.float32
 

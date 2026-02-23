@@ -8,7 +8,7 @@ print('Running Test...')
 a = 0.2
 h = 0.1
 time = 100
-root_m = 96
+root_m = 128
 num_steps = 2000
 
 u_n = torch.zeros((root_m, root_m))
