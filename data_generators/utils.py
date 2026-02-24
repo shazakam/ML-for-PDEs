@@ -1,5 +1,6 @@
 import torch
-
+from abc import ABC, abstractmethod
+from boundary_conditions import BoundaryCondition
 def construct_cyclical_laplacian(m:int) -> torch.Tensor:
     """
     Constructs Cyclical laplacian of a given size
@@ -18,3 +19,7 @@ def construct_cyclical_laplacian(m:int) -> torch.Tensor:
     D[-1][0] = 1
 
     return D
+
+def apply_laplacian(u : torch.Tensor, bc) -> torch.Tensor:
+
+    return
