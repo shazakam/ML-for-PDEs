@@ -14,40 +14,28 @@ class HeatEquation(DataGenerator):
     Crank-Nicolson finite difference scheme.
 
     The heat equation is:  du/dt = a * laplacian(u)
-
-    Spatial discretization uses the Kronecker product of two 1D cyclic
-    Laplacian matrices to form the 2D Laplacian operator C. The
-    Crank-Nicolson update is:
-
-        (I - mu*C) u_{n+1} = (I + mu*C) u_n
-
-    where mu = a * dt / (2 * h^2). This is unconditionally stable and
-    second-order accurate in both space and time.
     """
 
     def __init__(self):
         pass
 
-    def timestep(self, Ainv : torch.Tensor, B: torch.Tensor) -> torch.Tensor:
+    def timestep(self, u_n : torch.Tensor, bc : BoundaryCondition, kernel : torch.Tensor, mu : float) -> torch.Tensor:
         """
-        Perform a single Crank-Nicolson time step.
+        Perform a single explicit Euler time step.
 
-        Computes u_{n+1} = A_inv @ B @ u_n where A = (I - mu*C) and
-        B = (I + mu*C).
-
-        :param u_n: Current solution state, shape (root_m**2, root_m**2).
+        :param u_n: Current solution state, shape (root_m, root_m).
         :type u_n: torch.Tensor
-        :param A_inv: Precomputed inverse of the implicit matrix A.
-        :type A_inv: torch.Tensor
-        :param B: The explicit matrix B.
-        :type B: torch.Tensor
+        :param bc: Boundary condition object used to apply the operator.
+        :type bc: BoundaryCondition
+        :param kernel: Laplacian convolution kernel.
+        :type kernel: torch.Tensor
+        :param mu: Scaled time step a*dt/h².
+        :type mu: float
         :returns: Solution state at the next time step.
         :rtype: torch.Tensor
-        """ 
+        """
 
-   
-
-        return Ainv @ B
+        return u_n + mu*bc.apply_boundary_condition(u_n, kernel)
 
     def generate_simulation_run(self, 
                                 a : float, 
@@ -89,22 +77,22 @@ class HeatEquation(DataGenerator):
 
         dt = float(time/num_steps)
 
-        mu = a*dt/(2*h**2)
+        mu = a*dt/(h**2)
+        print(f'Mu : {mu}')
 
         laplacian = Laplacian()
-        A = torch.eye(root_m, dtype=dtype) - mu*bc.apply_boundary_condition(torch.eye(root_m, dtype=dtype), laplacian.get_kernel(dtype=dtype))
-        
-        A_inv = torch.linalg.inv(A) # type: ignore
+        kernel = laplacian.get_kernel(device=device, dtype=dtype)
 
-        simulation_data = torch.zeros((num_steps, root_m, root_m))
+        simulation_data = torch.zeros((num_steps, root_m, root_m), device=device)
         simulation_data[0, :, :] = u_n.reshape((1, root_m, root_m))
-        # u_n = u_n.to(device=device, dtype=dtype).reshape(root_m**2)
+        u_n = u_n.to(device=device, dtype=dtype)
 
         with torch.no_grad():
             for t in tqdm(range(1, num_steps)):
-                B = torch.eye(root_m, dtype=dtype) + mu*bc.apply_boundary_condition(u_n, laplacian.get_kernel(dtype=dtype))
-                u_n = self.timestep(A_inv, B) # type: ignore
-                simulation_data[t, :, :] = u_n.reshape((1, root_m, root_m)) # type: ignore
+                u_n = self.timestep(u_n, bc=bc, kernel=kernel, mu=mu)
+                simulation_data[t, :, :] = u_n
+
+        print(simulation_data)
                 
         return simulation_data
     
