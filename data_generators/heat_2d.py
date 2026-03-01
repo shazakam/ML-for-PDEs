@@ -1,9 +1,12 @@
 from typing import Any
 import torch
 from .generator import DataGenerator
-from .utils import construct_cyclical_laplacian
+# from utils.conjugate_gradient import ConjugateGradient
+from .boundary_operator import Laplacian
+# from boundary_operator import Operator
 from tqdm import tqdm
 # import h5py
+from .boundary_operator import BoundaryCondition
 
 class HeatEquation(DataGenerator):
     """
@@ -25,7 +28,7 @@ class HeatEquation(DataGenerator):
     def __init__(self):
         pass
 
-    def timestep(self, u_n : torch.Tensor, A_inv : torch.Tensor, B : torch.Tensor) -> torch.Tensor:
+    def timestep(self, Ainv : torch.Tensor, B: torch.Tensor) -> torch.Tensor:
         """
         Perform a single Crank-Nicolson time step.
 
@@ -40,17 +43,25 @@ class HeatEquation(DataGenerator):
         :type B: torch.Tensor
         :returns: Solution state at the next time step.
         :rtype: torch.Tensor
-        """
-        u_n = A_inv @ B @ u_n
+        """ 
 
-        return u_n
+   
 
-    def generate_simulation_run(self, a : float, u_n : torch.Tensor, h:float, time:float, root_m : int, num_steps : int)-> torch.Tensor:
+        return Ainv @ B
+
+    def generate_simulation_run(self, 
+                                a : float, 
+                                bc : BoundaryCondition,
+                                u_n : torch.Tensor,
+                                h:float, 
+                                time:float, 
+                                root_m : int, 
+                                num_steps : int)-> torch.Tensor:
         """
         Run a full simulation of the 2D heat equation from an initial condition.
 
         Constructs the Crank-Nicolson matrices from the given physical and grid
-        parameters, then advances the solution for ``num_steps`` time steps,
+        parameters, then advances the solution for num_steps time steps,
         storing the state at each step.
 
         :param a: Thermal diffusivity coefficient.
@@ -76,25 +87,24 @@ class HeatEquation(DataGenerator):
         device = torch.device("mps")
         dtype = torch.float32
 
-        D: torch.Tensor = construct_cyclical_laplacian(root_m).to(device=device, dtype=dtype)
         dt = float(time/num_steps)
 
         mu = a*dt/(2*h**2)
 
-        C = torch.kron(torch.eye(root_m, device=device, dtype=dtype), D) + torch.kron(D, torch.eye(root_m,device=device, dtype=dtype))
-
-        A_inv  = torch.eye(root_m**2, device=device, dtype=dtype) - mu*C
-        A_inv = torch.inverse(A_inv)
-        B = torch.eye(root_m**2, device=device, dtype=dtype) + mu*C
+        laplacian = Laplacian()
+        A = torch.eye(root_m, dtype=dtype) - mu*bc.apply_boundary_condition(torch.eye(root_m, dtype=dtype), laplacian.get_kernel(dtype=dtype))
+        
+        A_inv = torch.linalg.inv(A) # type: ignore
 
         simulation_data = torch.zeros((num_steps, root_m, root_m))
         simulation_data[0, :, :] = u_n.reshape((1, root_m, root_m))
-        u_n = u_n.to(device=device, dtype=dtype).reshape(root_m**2)
+        # u_n = u_n.to(device=device, dtype=dtype).reshape(root_m**2)
 
         with torch.no_grad():
             for t in tqdm(range(1, num_steps)):
-                u_n = self.timestep(u_n, A_inv, B)
-                simulation_data[t, :, :] = u_n.reshape((1, root_m, root_m))
+                B = torch.eye(root_m, dtype=dtype) + mu*bc.apply_boundary_condition(u_n, laplacian.get_kernel(dtype=dtype))
+                u_n = self.timestep(A_inv, B) # type: ignore
+                simulation_data[t, :, :] = u_n.reshape((1, root_m, root_m)) # type: ignore
                 
         return simulation_data
     

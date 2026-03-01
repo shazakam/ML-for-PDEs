@@ -2,6 +2,7 @@ import pytest
 from data_generators.utils import construct_cyclical_laplacian
 from utils.conjugate_gradient import ConjugateGradient
 import torch
+from data_generators.boundary_operator import PeriodicBoundary, Laplacian
 
 L3 = torch.tensor([
     [-2.,  1.,  1.],
@@ -51,8 +52,8 @@ def test_CG():
     CG = ConjugateGradient(10e-9, 1000)
 
     x = CG.solve(A, b, torch.zeros_like(b, dtype = torch.float32))
-    x_true = torch.linalg.solve(A, b)
-    l2_error = torch.norm(x_true - x)
+    x_true = torch.linalg.solve(A, b) # type: ignore
+    l2_error = torch.norm(x_true - x) # type: ignore
     print(f'CG L2 ERROR: {l2_error}')
     assert l2_error < 10e-6
 
@@ -88,8 +89,8 @@ def _make_poisson_1d(n: int) -> torch.Tensor:
     :rtype: torch.Tensor
     """
     A = 2.0 * torch.eye(n, dtype=torch.float64)
-    A -= torch.diag(torch.ones(n - 1, dtype=torch.float64),  1)
-    A -= torch.diag(torch.ones(n - 1, dtype=torch.float64), -1)
+    A -= torch.diag(torch.ones(n - 1, dtype=torch.float64),  1) # type: ignore
+    A -= torch.diag(torch.ones(n - 1, dtype=torch.float64), -1) # type: ignore
     return A
 
 
@@ -113,9 +114,9 @@ def test_CG_random_spd(n: int, seed: int):
 
     CG = ConjugateGradient(1e-6, 2 * n)
     x = CG.solve(A, b, torch.zeros(n, dtype=torch.float32))
-    x_true = torch.linalg.solve(A, b)
+    x_true = torch.linalg.solve(A, b) # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType]
 
-    l2_error = torch.norm(x_true - x)
+    l2_error = torch.norm(x_true - x) # type: ignore
     print(f'CG L2 ERROR (random SPD, n={n}): {l2_error}')
     assert l2_error < 1e-3
 
@@ -134,9 +135,22 @@ def test_CG_poisson_1d(n: int):
 
     CG = ConjugateGradient(1e-6, 2 * n)
     x = CG.solve(A, b, torch.zeros(n, dtype=torch.float64))
-    x_true = torch.linalg.solve(A, b)
+    x_true = torch.linalg.solve(A, b) # type: ignore
 
-    l2_error = torch.norm(x_true - x)
+    l2_error = torch.norm(x_true - x) # type: ignore
     print(f'CG L2 ERROR (Poisson 1D, n={n}): {l2_error}')
     assert l2_error < 1e-3
+
+@pytest.mark.parametrize("m", [10, 50, 100])
+def test_cyclical_boundary_class(m:int):
+    dtype = torch.float64
+    one_tensor = torch.ones((m,m), dtype=dtype)
+    lp = Laplacian()
+
+    bc = PeriodicBoundary()
+
+    output = bc.apply_boundary_condition(one_tensor, lp.get_kernel(dtype=dtype))
+
+    assert torch.equal(output, torch.zeros_like(one_tensor, dtype=dtype))
+
 
