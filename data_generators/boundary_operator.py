@@ -19,6 +19,22 @@ class Laplacian(Operator):
         return torch.tensor([[0,  1, 0],
                               [1, -4, 1],
                               [0,  1, 0]], dtype=dtype, device=device)
+    
+# class Laplacian1D(Operator):
+#     def __init__(self):
+#         super().__init__()
+
+#     def get_kernel(self,  m : int, device: torch.device, dtype: torch.dtype = torch.float64) -> torch.Tensor: # type: ignore
+#         D = torch.eye(m, dtype=dtype, device=device)*(-2)
+
+#         for i in range(m):
+#             D[i][(i+1)%m] = 1
+#             D[i][(i-1)%m] = 1
+
+#         D[0][-1] = 1
+#         D[-1][0] = 1
+
+#         return D
 
 class BoundaryCondition(ABC):
     def __init__(self):
@@ -26,6 +42,10 @@ class BoundaryCondition(ABC):
 
     @abstractmethod
     def apply_boundary_condition(self, *args:Any, **kwargs:Any) -> torch.Tensor:
+        pass
+
+    @abstractmethod
+    def apply_boundary_condition_one_direction(self, *args:Any, **kwargs:Any) -> torch.Tensor:
         pass
     
 class PeriodicBoundary(BoundaryCondition):
@@ -53,3 +73,27 @@ class PeriodicBoundary(BoundaryCondition):
         result = F.conv2d(u_padded, kernel, padding=0)
 
         return result.squeeze(0).squeeze(0) if squeeze else result
+    
+    def apply_boundary_condition_one_direction(self, u: torch.Tensor, kernel: torch.Tensor) -> torch.Tensor:
+        """
+        Applies a 1D operator kernel to each row of u with circular (periodic) padding.
+
+        :param u: Input matrix of shape (m, m) or batch (B, 1, m).
+        :type u: torch.Tensor
+        :param kernel: 1-D convolution kernel of shape (kW,).
+        :type kernel: torch.Tensor
+        :returns: Result of applying the operator, same leading shape as u.
+        :rtype: torch.Tensor
+        """
+        pad = kernel.shape[0] // 2
+
+        squeeze = u.dim() == 2
+        if squeeze:
+            u = u.unsqueeze(1)  # (m, 1, m) — batch of m 1D sequences
+
+        kernel = kernel.unsqueeze(0).unsqueeze(0)  # (1, 1, kW)
+        u_padded = F.pad(u, (pad, pad), mode='circular')
+        result = F.conv1d(u_padded, kernel, padding=0)
+
+        return result.squeeze(1) if squeeze else result
+

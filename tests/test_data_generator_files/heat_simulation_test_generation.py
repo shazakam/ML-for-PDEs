@@ -8,7 +8,7 @@ data_generator = HeatEquation()
 boundary_condition = PeriodicBoundary()
 
 print('Running Test...')
-a = 0.2
+a = 1
 h = 0.1
 time = 100
 root_m = 256

@@ -16,18 +16,20 @@ class HeatEquation(DataGenerator):
     The heat equation is:  du/dt = a * laplacian(u)
     """
 
-    def __init__(self):
+    def __init__(self, device : torch.device = torch.device("mps"), dtype : torch.dtype = torch.float32):
+        self.device = device
+        self.dtype = dtype
         pass
 
     def timestep(self, u_n : torch.Tensor, bc : BoundaryCondition, kernel : torch.Tensor, mu : float) -> torch.Tensor:
         """
-        Perform a single explicit Euler time step.
+        Perform a ADI time step.
 
         :param u_n: Current solution state, shape (root_m, root_m).
         :type u_n: torch.Tensor
         :param bc: Boundary condition object used to apply the operator.
         :type bc: BoundaryCondition
-        :param kernel: Laplacian convolution kernel.
+        :param kernel: Laplacian 1D convolution kernel.
         :type kernel: torch.Tensor
         :param mu: Scaled time step a*dt/h².
         :type mu: float
@@ -35,7 +37,22 @@ class HeatEquation(DataGenerator):
         :rtype: torch.Tensor
         """
 
-        return u_n + mu*bc.apply_boundary_condition(u_n, kernel)
+        I = torch.eye(u_n.shape[0], dtype=self.dtype, device=self.device)
+
+        D = bc.apply_boundary_condition_one_direction(I, kernel)
+
+        # First solve   
+        rhs = u_n @ (mu*D + I)
+        lhs =  I - mu*D
+        u_n = torch.linalg.solve(lhs, rhs.T).T
+
+        # Second solve
+        rhs = (I + mu*D)@u_n 
+        lhs = (I - mu*D)
+
+        u_n = torch.linalg.solve(lhs, rhs)  
+
+        return u_n
 
     def generate_simulation_run(self, 
                                 a : float, 
@@ -47,10 +64,6 @@ class HeatEquation(DataGenerator):
                                 num_steps : int)-> torch.Tensor:
         """
         Run a full simulation of the 2D heat equation from an initial condition.
-
-        Constructs the Crank-Nicolson matrices from the given physical and grid
-        parameters, then advances the solution for num_steps time steps,
-        storing the state at each step.
 
         :param a: Thermal diffusivity coefficient.
         :type a: float
@@ -70,29 +83,24 @@ class HeatEquation(DataGenerator):
         :rtype: torch.Tensor
         """
 
-        # TODO: Optimise for GPU - keep everything in matrix format. 
-        # TODO: Instead of constructing Laplacian from scratch just apply a 2D Convolution on grid as a function which adjusts according to different boundary conditions.
-        device = torch.device("mps")
-        dtype = torch.float32
-
+        # TODO: Optimise for GPU - keep everything in matrix format -> Use ADI
         dt = float(time/num_steps)
 
-        mu = a*dt/(h**2)
+        mu = a*dt/(2*(h**2))
         print(f'Mu : {mu}')
-
-        laplacian = Laplacian()
-        kernel = laplacian.get_kernel(device=device, dtype=dtype)
-
-        simulation_data = torch.zeros((num_steps, root_m, root_m), device=device)
+  
+        kernel = torch.tensor([1., -2., 1.], dtype=self.dtype, device=self.device)
+        simulation_data = torch.zeros((num_steps, root_m, root_m), device=self.device)
         simulation_data[0, :, :] = u_n.reshape((1, root_m, root_m))
-        u_n = u_n.to(device=device, dtype=dtype)
+
+        u_n = u_n.to(device=self.device, dtype=self.dtype)
 
         with torch.no_grad():
             for t in tqdm(range(1, num_steps)):
                 u_n = self.timestep(u_n, bc=bc, kernel=kernel, mu=mu)
                 simulation_data[t, :, :] = u_n
 
-        print(simulation_data)
+        print(simulation_data.isnan())
                 
         return simulation_data
     
