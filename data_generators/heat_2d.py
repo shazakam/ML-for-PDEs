@@ -1,17 +1,14 @@
 from typing import Any
 import torch
 from .generator import DataGenerator
-# from utils.conjugate_gradient import ConjugateGradient
 from .boundary_operator import Laplacian
-# from boundary_operator import Operator
 from tqdm import tqdm
-# import h5py
 from .boundary_operator import BoundaryCondition
 
 class HeatEquation(DataGenerator):
     """
     Solves the 2D heat equation on a periodic square grid using the
-    Crank-Nicolson finite difference scheme.
+    Alternating Direction Implicit Method.
 
     The heat equation is:  du/dt = a * laplacian(u)
     """
@@ -67,23 +64,28 @@ class HeatEquation(DataGenerator):
 
         :param a: Thermal diffusivity coefficient.
         :type a: float
+
         :param u_n: Initial condition matrix, shape (root_m**2, root_m**2).
         :type u_n: torch.Tensor
+
         :param h: Spatial grid spacing (same in x and y).
         :type h: float
+
         :param time: Total simulation time.
         :type time: float
+
         :param root_m: Number of grid points along one spatial dimension.
             The full grid has root_m**2 interior points.
         :type root_m: int
+
         :param num_steps: Number of time steps to take.
         :type num_steps: int
+
         :returns: Tensor of shape (num_steps, root_m**2, root_m**2) containing
             the solution state at each time step.
         :rtype: torch.Tensor
         """
 
-        # TODO: Optimise for GPU - keep everything in matrix format -> Use ADI
         dt = float(time/num_steps)
 
         mu = a*dt/(2*(h**2))
@@ -99,8 +101,6 @@ class HeatEquation(DataGenerator):
             for t in tqdm(range(1, num_steps)):
                 u_n = self.timestep(u_n, bc=bc, kernel=kernel, mu=mu)
                 simulation_data[t, :, :] = u_n
-
-        print(simulation_data.isnan())
                 
         return simulation_data
     
