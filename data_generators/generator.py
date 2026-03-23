@@ -19,5 +19,9 @@ class DataGenerator(ABC):
     def generate_dataset(self, *args:Any, **kwargs:Any) -> torch.Tensor:
         pass
     
+    @abstractmethod
+    def generate_random_initial_condition(self, *args:Any, **kwards:Any) -> torch.Tensor:
+        pass
+    
     def save_data(self, file_path : str):
         return 
