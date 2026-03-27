@@ -64,11 +64,35 @@ def generate_normals(initial_u: torch.Tensor):
 
     return initial_u
 
-def generate_circles(initial_u : torch.Tensor):
-    return
+def generate_paths(initial_u : torch.Tensor):
 
-def generate_lines(initial_u : torch.Tensor):
-    return
+    num_paths = random.randint(200, 1200)
+    h, w = initial_u.shape
 
-def generate_random_path(initial_u : torch.Tensor):
-    return
+    rand_intensity = [random.gauss(1, 0.2) for _ in range(num_paths)]
+    rand_x_start = [random.randint(0, w-1) for _ in range(num_paths)]
+    rand_y_start = [random.randint(0, h-1) for _ in range(num_paths)]
+    path_lengths = [random.randint(50, 3*w) for _ in range(num_paths)]
+
+    for idx, i in enumerate(range(num_paths)):
+        start_loc = (rand_x_start[idx], rand_y_start[idx])
+        path_intensity = rand_intensity[idx]
+        path_length = path_lengths[idx]
+        initial_u = generate_random_path(initial_u, start_loc, path_intensity, path_length)
+
+    return initial_u
+
+def generate_random_path(u : torch.Tensor, start_loc : tuple, path_intensity : float, path_length : int) -> torch.Tensor:
+    x, y = start_loc
+    h, w = u.shape
+    u[x, y] = u[x,y] + path_intensity
+
+    for _ in range(path_length):
+        x_dif = random.choice([-1,1])
+        y_dif = random.choice([-1,1])
+
+        x, y = (x+x_dif)%w, (y+y_dif)%h
+
+        u[x,y] += path_intensity
+
+    return u
