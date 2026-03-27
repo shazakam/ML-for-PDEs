@@ -5,22 +5,28 @@ from data_generators.boundary_operator import PeriodicBoundary
 import sys
 
 print('Running Test...')
-a = 1
+a = 0.01
 h = 0.1
-time = 100
+time = 50
 m = 256
-num_steps = 2000
+num_steps = 1000
 
-u_n = torch.zeros((m, m))
-u_n[m//2 - m//4:m//2 + m//4, m//2 - m//4:m//2 + m//4] = 1
 dt = time / num_steps
 mu = a*dt/(h**2)
 
-data_generator = HeatEquation(n_samples = 100, max_t = 100, m = m)
 boundary_condition = PeriodicBoundary()
 
+data_generator = HeatEquation(n_samples = 100,
+                              m = m, 
+                              bc = boundary_condition,
+                              h = h,
+                              time = time,
+                              num_steps = num_steps)
+
+u_n = data_generator.generate_random_initial_condition()
+
 print('Beginning test simulation')
-simulation_run = data_generator.generate_simulation_run(a , boundary_condition, u_n, h, time, num_steps)
+simulation_run = data_generator.generate_simulation_run(a = a, u_n = u_n)
 
 save_path = "visualisations/heat2d_test.gif"
 stride = 20

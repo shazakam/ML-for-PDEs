@@ -26,13 +26,15 @@ def generate_squares(initial_u: torch.Tensor):
 
         # Top and bottom sides
         for col in cols:
-            initial_u[rows[0], col] = rand_intensity
-            initial_u[rows[-1], col] = rand_intensity
+            for t in range(-50, 50):
+                initial_u[rows[0], (col + t) % w] = rand_intensity
+                initial_u[rows[-1], (col + t) % w] = rand_intensity
 
         # Left and right sides
         for row in rows:
-            initial_u[row, cols[0]] = rand_intensity
-            initial_u[row, cols[-1]] = rand_intensity
+            for t in range(-50, 50):
+                initial_u[(row + t) % h, cols[0]] = rand_intensity
+                initial_u[(row + t) % h, cols[-1]] = rand_intensity
 
     return initial_u
 

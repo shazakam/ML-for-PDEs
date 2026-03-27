@@ -19,22 +19,6 @@ class Laplacian(Operator):
         return torch.tensor([[0,  1, 0],
                               [1, -4, 1],
                               [0,  1, 0]], dtype=dtype, device=device)
-    
-# class Laplacian1D(Operator):
-#     def __init__(self):
-#         super().__init__()
-
-#     def get_kernel(self,  m : int, device: torch.device, dtype: torch.dtype = torch.float64) -> torch.Tensor: # type: ignore
-#         D = torch.eye(m, dtype=dtype, device=device)*(-2)
-
-#         for i in range(m):
-#             D[i][(i+1)%m] = 1
-#             D[i][(i-1)%m] = 1
-
-#         D[0][-1] = 1
-#         D[-1][0] = 1
-
-#         return D
 
 class BoundaryCondition(ABC):
     def __init__(self):

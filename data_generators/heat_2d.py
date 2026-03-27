@@ -5,6 +5,8 @@ from .boundary_operator import Laplacian
 from tqdm import tqdm
 from .boundary_operator import BoundaryCondition
 import random
+from .initial_condition_generator_utils import generate_normals, generate_paths, generate_squares
+
 class HeatEquation(DataGenerator):
     """
     Solves the 2D heat equation on a periodic square grid using the
@@ -13,15 +15,26 @@ class HeatEquation(DataGenerator):
     The heat equation is:  du/dt = a * laplacian(u)
     """
 
-    def __init__(self, n_samples : int, max_t:int, m: int, device : torch.device = torch.device("mps"), dtype : torch.dtype = torch.float32):
+    def __init__(self, 
+                 n_samples : int,
+                 m: int, 
+                 bc : BoundaryCondition,
+                 h : float,
+                 time : float,
+                 num_steps : int,
+                 device : torch.device = torch.device("mps"), 
+                 dtype : torch.dtype = torch.float32):
         self.m = m
         self.n_samples = n_samples
-        self.max_t = max_t
         self.device = device
         self.dtype = dtype
+        self.bc = bc
+        self.h = h
+        self.num_steps = num_steps
+        self.time = time
         pass
 
-    def timestep(self, u_n : torch.Tensor, bc : BoundaryCondition, kernel : torch.Tensor, mu : float) -> torch.Tensor:
+    def timestep(self, u_n : torch.Tensor, kernel : torch.Tensor, mu : float) -> torch.Tensor:
         """
         Perform a ADI time step.
 
@@ -39,7 +52,7 @@ class HeatEquation(DataGenerator):
 
         I = torch.eye(u_n.shape[0], dtype=self.dtype, device=self.device)
 
-        D = bc.apply_boundary_condition_one_direction(I, kernel)
+        D = self.bc.apply_boundary_condition_one_direction(I, kernel)
 
         # First solve   
         rhs = u_n @ (mu*D + I)
@@ -56,11 +69,7 @@ class HeatEquation(DataGenerator):
 
     def generate_simulation_run(self, 
                                 a : float, 
-                                bc : BoundaryCondition,
-                                u_n : torch.Tensor,
-                                h:float, 
-                                time:float, 
-                                num_steps : int)-> torch.Tensor:
+                                u_n : torch.Tensor)-> torch.Tensor:
         """
         Run a full simulation of the 2D heat equation from an initial condition.
 
@@ -84,35 +93,43 @@ class HeatEquation(DataGenerator):
         :rtype: torch.Tensor
         """
 
-        dt = float(time/num_steps)
+        dt = float(self.time/self.num_steps)
 
-        mu = a*dt/(2*(h**2))
+        mu = a*dt/(2*(self.h**2))
         print(f'Mu : {mu}')
   
         kernel = torch.tensor([1., -2., 1.], dtype=self.dtype, device=self.device)
-        simulation_data = torch.zeros((num_steps, self.m, self.m), device=self.device)
+        simulation_data = torch.zeros((self.num_steps, self.m, self.m), device=self.device)
         simulation_data[0, :, :] = u_n.reshape((1, self.m, self.m))
 
         u_n = u_n.to(device=self.device, dtype=self.dtype)
 
         with torch.no_grad():
-            for t in tqdm(range(1, num_steps)):
-                u_n = self.timestep(u_n, bc=bc, kernel=kernel, mu=mu)
+            for t in tqdm(range(1, self.num_steps)):
+                u_n = self.timestep(u_n, kernel=kernel, mu=mu)
                 simulation_data[t, :, :] = u_n
                 
         return simulation_data
     
-    def generate_dataset(self, save_path : str, max_thermal_diffusivity : float) -> torch.Tensor:
+    def generate_dataset(self, a_min : float, a_max : float, folder_path : str) -> torch.Tensor:
         # Generates a torch tensor dataset and saves it to the given path
-        a = random.uniform(0, max_thermal_diffusivity)
+
+        for i in tqdm(range(self.n_samples)):
+            a = random.uniform(a_min, a_max)
+            u_init = self.generate_random_initial_condition()
+            sample = self.generate_simulation_run(a, u_init)
+
+            alpha_channel = torch.full(u_init.shape, a, dtype=sample.dtype)  # same shape as sample
+            sample = torch.stack([sample, alpha_channel], dim=0)
+            torch.save({'X': sample, 'alpha': a}, f"{folder_path}/sim_{i}.pt")
+
         return torch.zeros(10)
 
     def generate_random_initial_condition(self) -> torch.Tensor:
+        init_u = torch.zeros((self.m, self.m))
+        init_gen = random.choice([generate_squares, generate_normals, generate_paths])
 
-        # Select randomly from one of the initial conditions and generate it
+        init_u = init_gen(init_u)
 
-        return torch.zeros()
-    
-    def convert_image_folder_to_dataset(self, folder_path):
-        return
+        return init_u
     
