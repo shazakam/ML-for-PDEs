@@ -96,7 +96,6 @@ class HeatEquation(DataGenerator):
         dt = float(self.time/self.num_steps)
 
         mu = a*dt/(2*(self.h**2))
-        print(f'Mu : {mu}')
   
         kernel = torch.tensor([1., -2., 1.], dtype=self.dtype, device=self.device)
         simulation_data = torch.zeros((self.num_steps, self.m, self.m), device=self.device)
@@ -105,13 +104,13 @@ class HeatEquation(DataGenerator):
         u_n = u_n.to(device=self.device, dtype=self.dtype)
 
         with torch.no_grad():
-            for t in tqdm(range(1, self.num_steps)):
+            for t in range(1, self.num_steps):
                 u_n = self.timestep(u_n, kernel=kernel, mu=mu)
                 simulation_data[t, :, :] = u_n
                 
         return simulation_data
     
-    def generate_dataset(self, a_min : float, a_max : float, folder_path : str) -> torch.Tensor:
+    def generate_dataset(self, a_min : float, a_max : float, folder_path : str) -> None:
         # Generates a torch tensor dataset and saves it to the given path
 
         for i in tqdm(range(self.n_samples)):
@@ -119,11 +118,9 @@ class HeatEquation(DataGenerator):
             u_init = self.generate_random_initial_condition()
             sample = self.generate_simulation_run(a, u_init)
 
-            alpha_channel = torch.full(u_init.shape, a, dtype=sample.dtype)  # same shape as sample
+            alpha_channel = torch.full(sample.shape, a, dtype=sample.dtype, device= self.device)  # same shape as sample
             sample = torch.stack([sample, alpha_channel], dim=0)
             torch.save({'X': sample, 'alpha': a}, f"{folder_path}/sim_{i}.pt")
-
-        return torch.zeros(10)
 
     def generate_random_initial_condition(self) -> torch.Tensor:
         init_u = torch.zeros((self.m, self.m))
