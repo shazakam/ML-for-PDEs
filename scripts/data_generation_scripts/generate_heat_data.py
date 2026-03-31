@@ -1,16 +1,16 @@
 """Script to generate 2D heat equation training data.
 
-Instantiates :class:`~data_generators.heat_2d.HeatEquation` with the given
-parameters and saves one ``.pt`` file per simulation run to the output directory.
+Instantiates :class: data_generators.heat_2d.HeatEquation with the given
+parameters and saves one .pt file per simulation run to the output directory.
 
 Usage::
 
     uv run scripts/data_generation_scripts/generate_heat_data.py \\
         --n-samples 1000 --m 64 --num-steps 100
 
-Each saved file contains a dict ``{'X': tensor, 'alpha': float}`` where
-``X`` has shape ``(2, num_steps, m, m)`` (solution + diffusivity channel)
-and ``alpha`` is the thermal diffusivity used for that run.
+Each saved file contains a dict {'X': tensor, 'alpha': float} where
+X has shape (2, num_steps, m, m) (solution + diffusivity channel)
+and alpha is the thermal diffusivity used for that run.
 """
 
 import argparse

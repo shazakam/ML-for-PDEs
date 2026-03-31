@@ -6,11 +6,11 @@ Train a Neural Operator network to solve PDEs
 
 ## TODO:
 A lot to do. Here is a list (in order):
-- Create Data Generator classes: We will start with 2D Heat equation and a 2D Diffusion-Reaction equation 
-
-- Data Generator tests
+- Wave 2D + Reaction - Diffusion Equation (Data Generators)
 
 - Model architectures
+    - Diffusion PDE
+    - Neural Operator
 
 - Model tests
 
