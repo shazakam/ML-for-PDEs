@@ -18,4 +18,4 @@ A lot to do. Here is a list (in order):
 
 - Model inference and comparison scripts
 
-![Alt text](Uvisualisations/wave2d_i_like.gif)
+![Alt text](visualisations/wave2d_i_like.gif)
