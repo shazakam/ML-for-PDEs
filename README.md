@@ -17,3 +17,5 @@ A lot to do. Here is a list (in order):
 - Model training scripts
 
 - Model inference and comparison scripts
+
+![Alt text](Uvisualisations/wave2d_i_like.gif)
