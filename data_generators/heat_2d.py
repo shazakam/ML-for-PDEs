@@ -32,7 +32,7 @@ class HeatEquation(DataGenerator):
         self.h = h
         self.num_steps = num_steps
         self.time = time
-        pass
+        
 
     def timestep(self, u_n : torch.Tensor, kernel : torch.Tensor, mu : float) -> torch.Tensor:
         """

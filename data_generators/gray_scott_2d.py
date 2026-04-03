@@ -30,11 +30,11 @@ class GrayScottEquation(DataGenerator):
         self.num_steps = num_steps
         self.time = time
         self.dt = self.time / self.num_steps
-        pass
+        
 
-    def timestep(self, u_curr : torch.Tensor, v_curr : torch.Tensor, kernel : torch.Tensor, Du : float, Dv : float, F : float, k : float) -> (torch.Tensor, torch.Tensor):
+    def timestep(self, u_curr : torch.Tensor, v_curr : torch.Tensor, kernel : torch.Tensor, Du : float, Dv : float, F : float, k : float):
         """
-        Perform an explicit RK4 time step.
+        Perform a strang splitting step using Heun / RK2 method to approximate ODEs
 
         :param u_curr: Current solution state, shape (m, m).
         :type u_curr: torch.Tensor
@@ -47,80 +47,38 @@ class GrayScottEquation(DataGenerator):
         :returns: Solution state at the next time step.
         :rtype: torch.Tensor
         """
+        f_diff =  lambda D, x : D*self.bc.apply_boundary_condition(x, kernel)
+        f_react_u = lambda u, v, F: -torch.mul(u, v**2) + F*(1 - u)
+        f_react_v = lambda u, v, F, k : torch.mul(u, v**2) - (F+k)*v
 
-        f_u = lambda u, v, du, F : du*self.bc.apply_boundary_condition(u, kernel) - torch.mul(u, v**2) + F*(torch.eye(u.shape[0]) - u)
-        f_v = lambda u, v, dv, F, k : dv*self.bc.apply_boundary_condition(v, kernel) + torch.mul(u, v**2) + (F+k)*v
+        # Half step diffusion
+        u_half = self.heun_update(lambda x :f_diff(Du, x), u_curr, self.dt/2)
+        v_half = self.heun_update(lambda x :f_diff(Dv, x), v_curr, self.dt/2)
 
-        k1u = f_u(u_curr, v_curr, Du, F)
-        k1v = f_v(u_curr, v_curr, Dv, F, k)
+        # Full step reaction
+        u_full = self.heun_update(lambda x : f_react_u(x, v_half, F), u_half, self.dt)
+        v_full = self.heun_update(lambda x : f_react_v(u_half, x, F, k), v_half, self.dt)
 
-        k2u = f_u(u_curr + self.dt*k1u*(0.5), v_curr + self.dt*k1v*(0.5), Du, F)
-        k2v = f_v(u_curr + self.dt*k1u*(0.5), v_curr + self.dt*k1v*(0.5), Dv, F, k)
+        # Half step diffusion
+        u_next = self.heun_update(lambda x :f_diff(Du, x), u_full, self.dt/2)
+        v_next = self.heun_update(lambda x :f_diff(Dv, x), v_full, self.dt/2)
 
-        k3u = f_u(u_curr + self.dt*k2u*(0.5), v_curr + self.dt*k2v*(0.5), Du, F)
-        k3v = f_v(u_curr + self.dt*k2u*(0.5), v_curr + self.dt*k2v*(0.5), Dv, F, k)
+        return u_next, v_next
+     
+    def heun_update(self, f, x_init : torch.Tensor, dt):
+        x_init_dt = f(x_init)
+        x_init_half = x_init + dt*x_init_dt
+        x_init_half_dt = f(x_init_half)
 
-        k4u = f_u(u_curr + self.dt*k3u, v_curr + self.dt*k3v, Du, F)
-        k4v = f_v(u_curr + self.dt*k3u, v_curr + self.dt*k3v, Dv, F, k)
+        x_next = x_init + (dt/2)*(x_init_dt + x_init_half_dt)
 
-        u_curr += (self.dt/6)*(k1u + 2*k2u + 2*k3u + k4u)
-        v_curr += (self.dt/6)*(k1v + 2*k2v + 2*k3v + k4v)
-
-        return u_curr, v_curr
-
+        return x_next
+    
     def generate_simulation_run(self, 
                                 c : float, 
                                 u_n : torch.Tensor)-> torch.Tensor:
-        """
-        Run a full simulation of the 2D wave equation from an initial condition.
 
-        :param c: Wave speed
-        :type c: float
-
-        :param u_n: Initial condition matrix, shape (m, m).
-        :type u_n: torch.Tensor
-
-        :param h: Spatial grid spacing (same in x and y).
-        :type h: float
-
-        :param time: Total simulation time.
-        :type time: float
-
-        :param num_steps: Number of time steps to take.
-        :type num_steps: int
-
-        :returns: Tensor of shape (num_steps, m, m) containing
-            the solution state at each time step.
-        :rtype: torch.Tensor
-        """
-        dt = self.time / self.num_steps
-        r = (c * dt / self.h) ** 2
-        cfl = c * dt / self.h
-        if cfl > 1.0 / (2 ** 0.5):
-            raise ValueError(
-                f"CFL condition violated: c·dt/h = {cfl:.4f} > 1/√2 ≈ 0.7071. "
-                "Reduce dt (increase num_steps), reduce c, or increase h."
-            )
-
-        lap = Laplacian()
-        kernel = lap.get_kernel(self.device, self.dtype)
-        u_n = u_n.to(device=self.device, dtype=self.dtype)
-
-        u_curr = u_n + 0.5 * r * self.bc.apply_boundary_condition(u_n, kernel)
-        simulation_data = torch.zeros((self.num_steps, self.m, self.m), device=self.device)
-        simulation_data[0, :, :] = u_n.reshape((1, self.m, self.m))
-        simulation_data[1, :, :] = u_curr.reshape((1, self.m, self.m))
-
-        with torch.no_grad():
-             for t in range(2, self.num_steps):
-                 u_next = self.timestep(u_curr, u_n, kernel, r)
-                 u_n = u_curr
-                 u_curr = u_next
-                 if torch.isnan(u_curr).any():
-                     break
-                 simulation_data[t, :, :] = u_curr
-
-        return simulation_data
+        return u_n
     
     def generate_dataset(self, folder_path : str) -> None:
         # Generates a torch tensor dataset and saves it to the given path

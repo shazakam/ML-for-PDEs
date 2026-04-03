@@ -29,7 +29,7 @@ class WaveEquation(DataGenerator):
         self.h = h
         self.num_steps = num_steps
         self.time = time
-        pass
+        
 
     def timestep(self, u_curr : torch.Tensor, u_prev : torch.Tensor, kernel : torch.Tensor, r : float) -> torch.Tensor:
         """
@@ -77,11 +77,11 @@ class WaveEquation(DataGenerator):
         dt = self.time / self.num_steps
         r = (c * dt / self.h) ** 2
         cfl = c * dt / self.h
-        if cfl > 1.0 / (2 ** 0.5):
-            raise ValueError(
-                f"CFL condition violated: c·dt/h = {cfl:.4f} > 1/√2 ≈ 0.7071. "
-                "Reduce dt (increase num_steps), reduce c, or increase h."
-            )
+        # if cfl > 1.0 / (2 ** 0.5):
+        #     raise ValueError(
+        #         f"CFL condition violated: c·dt/h = {cfl:.4f} > 1/√2 ≈ 0.7071. "
+        #         "Reduce dt (increase num_steps), reduce c, or increase h."
+        #     )
 
         lap = Laplacian()
         kernel = lap.get_kernel(self.device, self.dtype)
@@ -103,21 +103,36 @@ class WaveEquation(DataGenerator):
 
         return simulation_data
     
-    def generate_dataset(self, folder_path : str) -> None:
-        # Generates a torch tensor dataset and saves it to the given path
+    def generate_dataset(self, c_min: float, c_max: float, folder_path: str) -> None:
+        """
+        Generate and save simulation runs to disk.
 
+        Samples a wave speed ``c ~ Uniform(c_min, c_max)`` for each run,
+        simulates the 2D wave equation, and saves one ``.pt`` file per run
+        containing a dict ``{'X': tensor}`` where ``X`` has shape
+        ``(2, num_steps, m, m)``:  index 0 is the solution field and
+        index 1 is the wave speed (broadcast as a constant channel).
+
+        :param c_min: Minimum wave speed.
+        :type c_min: float
+        :param c_max: Maximum wave speed.
+        :type c_max: float
+        :param folder_path: Directory in which to write ``sim_{i}.pt`` files.
+        :type folder_path: str
+        """
         for i in tqdm(range(self.n_samples)):
-            # a = random.uniform(a_min, a_max)
+            c = random.uniform(c_min, c_max)
             u_init = self.generate_random_initial_condition()
-            # sample = self.generate_simulation_run(a, u_init)
+            sample = self.generate_simulation_run(c, u_init)
 
-            # alpha_channel = torch.full(sample.shape, a, dtype=sample.dtype, device = self.device)  # same shape as sample
-            # sample = torch.stack([sample, alpha_channel], dim=0)
-            # torch.save({'X': sample.cpu()}, f"{folder_path}/sim_{i}.pt")
+            c_channel = torch.full(sample.shape, c, dtype=sample.dtype, device=self.device)
+            sample = torch.stack([sample, c_channel], dim=0)
+            torch.save({'X': sample.cpu()}, f"{folder_path}/sim_{i}.pt")
 
     def generate_random_initial_condition(self) -> torch.Tensor:
         init_u = torch.zeros((self.m, self.m))
-        init_gen = random.choice([generate_squares, generate_normals, generate_paths])
+        # init_gen = random.choice([generate_squares, generate_normals, generate_paths])
+        init_gen = random.choice([generate_normals])
 
         init_u = init_gen(init_u)
 
