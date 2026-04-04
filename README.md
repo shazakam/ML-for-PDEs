@@ -1,22 +1,35 @@
-# WORK IN PROGRESS
+# ML for PDEs
 
-Goal:
-Train a Diffusion model similar to the one from DiffusionPDE to solve PDEs
-Train a Neural Operator network to solve PDEs
+> **Work in progress** — training ML models to solve partial differential equations.
 
-## TODO:
-- Data Generators for wave and gray scott need to be altered to ensure we get an interesting set and valid set of datasets
+## Goal
 
-- Model architectures
-    - Diffusion PDE
-    - Neural Operator
+Train a **Diffusion model** (inspired by [DiffusionPDE](https://arxiv.org/abs/2406.12667)) and a **Neural Operator** to learn solution operators for 2D PDEs from simulated data.
 
-- Model tests
+---
 
-- Model training scripts
+## Simulations
 
-- Model inference and comparison scripts
+| Heat Equation | Wave Equation | Gray-Scott Reaction-Diffusion |
+|:---:|:---:|:---:|
+| ![Heat](visualisations/heat2d_test.gif) | ![Wave](visualisations/wave2d_i_like.gif) | ![Gray-Scott](visualisations/gray_scott_test.gif) |
+| Crank-Nicolson (ADI) | Leapfrog (explicit) | Strang splitting + Heun |
 
-![Alt text](visualisations/wave2d_i_like.gif)
-![Alt text](visualisations/gray_scott_test.gif)
-![Alt text](visualisations/heat2d_test.gif)
+---
+
+## Roadmap
+
+### Data
+- [x] Heat equation 2D data generator
+- [x] Wave equation 2D data generator
+- [x] Gray-Scott reaction-diffusion 2D data generator
+- [ ] Validate dataset distributions for wave and Gray-Scott
+
+### Models
+- [ ] DiffusionPDE architecture
+- [ ] Neural Operator architecture
+
+### Training & Evaluation
+- [ ] Model training scripts
+- [ ] Model tests
+- [ ] Inference and comparison scripts
