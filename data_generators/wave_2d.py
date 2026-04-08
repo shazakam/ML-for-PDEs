@@ -76,12 +76,6 @@ class WaveEquation(DataGenerator):
         """
         dt = self.time / self.num_steps
         r = (c * dt / self.h) ** 2
-        cfl = c * dt / self.h
-        # if cfl > 1.0 / (2 ** 0.5):
-        #     raise ValueError(
-        #         f"CFL condition violated: c·dt/h = {cfl:.4f} > 1/√2 ≈ 0.7071. "
-        #         "Reduce dt (increase num_steps), reduce c, or increase h."
-        #     )
 
         lap = Laplacian()
         kernel = lap.get_kernel(self.device, self.dtype)
@@ -107,21 +101,38 @@ class WaveEquation(DataGenerator):
         """
         Generate and save simulation runs to disk.
 
-        Samples a wave speed ``c ~ Uniform(c_min, c_max)`` for each run,
-        simulates the 2D wave equation, and saves one ``.pt`` file per run
-        containing a dict ``{'X': tensor}`` where ``X`` has shape
-        ``(2, num_steps, m, m)``:  index 0 is the solution field and
+        Samples a wave speed c ~ Uniform(c_min, c_max) for each run,
+        simulates the 2D wave equation, and saves one .pt file per run
+        containing a dict {'X': tensor} where X has shape
+        (2, num_steps, m, m):  index 0 is the solution field and
         index 1 is the wave speed (broadcast as a constant channel).
 
         :param c_min: Minimum wave speed.
         :type c_min: float
         :param c_max: Maximum wave speed.
         :type c_max: float
-        :param folder_path: Directory in which to write ``sim_{i}.pt`` files.
+        :param folder_path: Directory in which to write sim_{i}.pt files.
         :type folder_path: str
         """
+        dt = self.time / self.num_steps
+        c_max_stable = self.h / (dt * (2 ** 0.5))
+        safe_c_max = min(c_max, c_max_stable)
+        if c_min > c_max_stable:
+            raise ValueError(
+                f"c_min={c_min} exceeds the CFL stability limit c_max_stable={c_max_stable:.4f}. "
+                "Increase num_steps, decrease time, or increase h."
+            )
+        if c_max > c_max_stable:
+            import warnings
+            warnings.warn(
+                f"c_max={c_max} exceeds CFL stability limit {c_max_stable:.4f}; "
+                f"clamping to {c_max_stable:.4f}.",
+                UserWarning,
+                stacklevel=2,
+            )
+
         for i in tqdm(range(self.n_samples)):
-            c = random.uniform(c_min, c_max)
+            c = random.uniform(c_min, safe_c_max)
             u_init = self.generate_random_initial_condition()
             sample = self.generate_simulation_run(c, u_init)
 
