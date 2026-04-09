@@ -14,7 +14,7 @@ class DDPM(L.LightningModule):
         # Generate random noise for time step T
         u_noise_curr = torch.randn_like(u_0)
         step = [i for i in range(self.T)]
-        step = t[::-1]
+        step = step[::-1]
         # Denoise T timesteps
         for t in step:
             
@@ -40,11 +40,11 @@ class DDPM(L.LightningModule):
         # Add Noise to target state
         u_noisy = torch.sqrt(self.noise_schedule[t])*u_0 + torch.sqrt(1 - self.noise_schedule[t])*eps
 
-        # Concatenate with u_0 so we have [u_0, u_noised_T]
-        u_in = torch.cat([u_0, u_noisy], dim = 0)
+        # Concatenate with u_0 so we have [u_0, u_noised_T] along channel axis
+        u_in = torch.cat([u_0, u_noisy], dim=1)
 
         # Predict Noise
-        eps_pred = self.denoising_model(u_in)
+        eps_pred = self.denoising_model(u_in, t)
 
         # Calculate loss and return
         output_loss = F.mse_loss(eps_pred, eps)
