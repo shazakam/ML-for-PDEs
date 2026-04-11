@@ -12,11 +12,11 @@ class NoiseScheduler(ABC):
         return
 
 class CosineScheduler(NoiseScheduler):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, T: int, s: float) -> None:
+        super().__init__(T, s)
         
     def schedule(self):
         t       = torch.linspace(0, self.T, self.T+1)
         f_t     = torch.cos((t/self.T + self.s) / (1 + self.s) * torch.pi / 2) ** 2
-        alpha_bar = f_t / f_t[0]
-        return alpha_bar
+        alpha_bar_t = f_t / f_t[0]
+        return alpha_bar_t
