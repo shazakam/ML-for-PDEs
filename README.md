@@ -17,19 +17,9 @@ Train a **Diffusion model** (inspired by [DiffusionPDE](https://arxiv.org/abs/24
 
 ---
 
-## Roadmap
+## TODO:
 
-### Data
-- [x] Heat equation 2D data generator
-- [x] Wave equation 2D data generator
-- [x] Gray-Scott reaction-diffusion 2D data generator
-- [ ] Validate dataset distributions for wave and Gray-Scott
-
-### Models
-- [ ] DiffusionPDE architecture
-- [ ] Neural Operator architecture
-
-### Training & Evaluation
-- [ ] Model training scripts
-- [ ] Model tests
-- [ ] Inference and comparison scripts
+- [ ] Need Gray-Scott config
+- [ ] Need to ensure simulation samples generated for Wave Equation and Gray-Scott do not break i.e. paramaters and initial conditions ensure outputs are stable when generated
+- [ ] Need to handle data loading lightning_dataset folders
+- [ ] Set up training script for diffusion model

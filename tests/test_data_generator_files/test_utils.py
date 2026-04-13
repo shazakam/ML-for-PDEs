@@ -1,5 +1,5 @@
 import pytest
-from utils.conjugate_gradient import ConjugateGradient
+from utils_general.conjugate_gradient import ConjugateGradient
 import torch
 from data_generators.boundary_operator import PeriodicBoundary, Laplacian
 

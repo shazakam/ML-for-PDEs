@@ -7,4 +7,4 @@ c_min: 1
 c_max: 5.0
 device: mps
 dtype: float32
-out_dir: data/training_data/wave_equation_2d
+out_dir: test_train_data/training_data/wave_equation_2d
