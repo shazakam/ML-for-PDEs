@@ -7,4 +7,4 @@ a_min: 0.01
 a_max: 0.5
 device: mps
 dtype: float32
-out_dir: data/training_data/heat_equation_2d
+out_dir: test_train_data/training_data/heat_equation_2d
