@@ -39,7 +39,7 @@ DTYPE_MAP = {
 }
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_OUT_DIR = REPO_ROOT / "data" / "training_data" / "gray_scott_2d"
+DEFAULT_OUT_DIR = REPO_ROOT / "data" / "raw_data" / "gray_scott_2d"
 
 
 def parse_args() -> argparse.Namespace:

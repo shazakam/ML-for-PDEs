@@ -118,9 +118,9 @@ class HeatEquation(DataGenerator):
             u_init = self.generate_random_initial_condition()
             sample = self.generate_simulation_run(a, u_init)
 
-            alpha_channel = torch.full(sample.shape, a, dtype=sample.dtype, device = self.device)  # same shape as sample
-            sample = torch.stack([sample, alpha_channel], dim=0)
-            torch.save({'X': sample.cpu()}, f"{folder_path}/sim_{i}.pt")
+            # alpha_channel = torch.full(sample.shape, a, dtype=sample.dtype, device = self.device)  # same shape as sample
+            # sample = torch.stack([sample, alpha_channel], dim=0)
+            torch.save({'X': sample.cpu(), 'a':a}, f"{folder_path}/sim_{i}.pt") # X has dimensions (T, H, W)
 
     def generate_random_initial_condition(self) -> torch.Tensor:
         init_u = torch.zeros((self.m, self.m))

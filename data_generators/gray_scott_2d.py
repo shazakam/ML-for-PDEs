@@ -159,7 +159,7 @@ class GrayScottEquation(DataGenerator):
         for i in tqdm(range(self.n_samples)):
             F = random.uniform(F_min, F_max)
             k = random.uniform(k_min, k_max)
-
+            # NOTE: Why is Du and Dv not being generated randomly here?
             u_init, v_init = self.generate_random_initial_condition()
             u_traj, v_traj = self.generate_simulation_run(Du, Dv, F, k, u_init, v_init)
 

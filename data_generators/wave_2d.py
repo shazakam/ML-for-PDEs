@@ -136,9 +136,9 @@ class WaveEquation(DataGenerator):
             u_init = self.generate_random_initial_condition()
             sample = self.generate_simulation_run(c, u_init)
 
-            c_channel = torch.full(sample.shape, c, dtype=sample.dtype, device=self.device)
-            sample = torch.stack([sample, c_channel], dim=0)
-            torch.save({'X': sample.cpu()}, f"{folder_path}/sim_{i}.pt")
+            # c_channel = torch.full(sample.shape, c, dtype=sample.dtype, device=self.device)
+            # sample = torch.stack([sample, c_channel], dim=0)
+            torch.save({'X': sample.cpu(), 'c':c}, f"{folder_path}/sim_{i}.pt")
 
     def generate_random_initial_condition(self) -> torch.Tensor:
         init_u = torch.zeros((self.m, self.m))

@@ -17,9 +17,11 @@ Train a **Diffusion model** (inspired by [DiffusionPDE](https://arxiv.org/abs/24
 
 ---
 
-## TODO:
+# NOTE TO SELF
+What is the dimensionality of the data generated?
+For heat and wave equations a single sample has dimensions (2, T, H, W) where (0, T, H, W) has the 
 
+## TODO:
 - [ ] Need Gray-Scott config
-- [ ] Need to ensure simulation samples generated for Wave Equation and Gray-Scott do not break i.e. paramaters and initial conditions ensure outputs are stable when generated
 - [ ] Need to handle data loading lightning_dataset folders
 - [ ] Set up training script for diffusion model
