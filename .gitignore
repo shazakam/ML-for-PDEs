@@ -6,7 +6,7 @@ dist/
 wheels/
 *.egg-info
 .pytest_cache
-test_train_data/*
+data/*
 # Virtual environments
 .venv
 CLAUDE.md
