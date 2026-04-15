@@ -31,7 +31,7 @@ def min_max_dataset(folder_path, tensor_keys, pde_param_keys, save_dir):
         data = min_max_file(data, tensor_keys, pde_param_keys, tensor_mins, tensor_maxs, pde_param_mins, pde_param_maxs)
     
         # Save each file to specified directory
-        torch.save(data, f"{save_dir}/min_max_{file}")
+        torch.save(data, f"{save_dir}/min_max_{file.split('/')[-1]}")
 
 def get_min_max(folder_path, tensor_keys, pde_param_keys):
     """Compute the per-key global min and max across all files in a dataset.
@@ -52,8 +52,8 @@ def get_min_max(folder_path, tensor_keys, pde_param_keys):
     """
     pde_param_maxs = dict(zip(pde_param_keys, [None] * len(pde_param_keys)))
     pde_param_mins = dict(zip(pde_param_keys, [None] * len(pde_param_keys)))
-    tensor_maxs = dict(zip(tensor_keys, len(tensor_keys) * [torch.inf]))
-    tensor_mins = dict(zip(tensor_keys, len(tensor_keys) * [-1*torch.inf]))
+    tensor_maxs = dict(zip(tensor_keys, len(tensor_keys) * [-torch.inf]))
+    tensor_mins = dict(zip(tensor_keys, len(tensor_keys) * [torch.inf]))
 
     files = [f"{folder_path}/{file}" for file in os.listdir(folder_path)]
 
@@ -62,12 +62,18 @@ def get_min_max(folder_path, tensor_keys, pde_param_keys):
 
         for pde_key in pde_param_keys:
 
-            if pde_param_mins[pde_key] > data[pde_key] or pde_param_mins[pde_key] == None:
+            # If None then we are in the first iteration
+            if pde_param_mins[pde_key] is None:
                 pde_param_mins[pde_key] = data[pde_key]
-
-            if pde_param_maxs[pde_key] < data[pde_key] or pde_param_maxs[pde_key] == None:
                 pde_param_maxs[pde_key] = data[pde_key]
-            
+            else:
+
+                if pde_param_mins[pde_key] > data[pde_key] :
+                    pde_param_mins[pde_key] = data[pde_key]
+
+                if pde_param_maxs[pde_key] < data[pde_key]:
+                    pde_param_maxs[pde_key] = data[pde_key]
+                
         for tensor_key in tensor_keys:
             if tensor_mins[tensor_key] > data[tensor_key].min():
                 tensor_mins[tensor_key] = data[tensor_key].min()

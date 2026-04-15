@@ -41,7 +41,7 @@ def generate_squares(initial_u: torch.Tensor):
 def generate_normals(initial_u: torch.Tensor):
     """Add random 2D Gaussian distributions to the tensor.
 
-    Superimposes between 1 and 8 axis-aligned Gaussian blobs onto ``initial_u``,
+    Superimposes between 1 and 8 axis-aligned Gaussian blobs onto initial_u,
     each with a random centre, standard deviations, and peak intensity.
 
     :param initial_u: 2D tensor to add Gaussian distributions onto.
@@ -49,20 +49,27 @@ def generate_normals(initial_u: torch.Tensor):
     :returns: Modified tensor with Gaussians added (in-place).
     :rtype: torch.Tensor
     """
-    normal_gen = lambda x, y, A, x_0, y_0, sigma_x, sigma_y: A*torch.exp(-(0.5*((x-x_0)**2)/(sigma_x**2) + 0.5*((y-y_0)**2)/(sigma_y**2)))
-
     num_distributions = random.randint(1, 8)
     h, w = initial_u.shape
 
     for _ in range(num_distributions):
-        canvas = torch.cartesian_prod(torch.tensor([i for i in range(h)]), torch.tensor([i for i in range(w)])).reshape((h, w, 2))
+        canvas = torch.cartesian_prod(torch.arange(h), torch.arange(w)).reshape((h, w, 2)).float()
         rand_centre_x, rand_centre_y = random.randint(0, w-1), random.randint(0, h-1)
-        rand_x_sigma, rand_y_sigma = random.randint(5,40), random.randint(5,40)
-        rand_intensity = random.random()*random.randint(1,10)
+        rand_x_sigma = random.randint(max(1, int(0.05 * w)), max(2, int(0.15 * w)))
+        rand_y_sigma = random.randint(max(1, int(0.05 * h)), max(2, int(0.15 * h)))
+        rand_intensity = random.random() * random.randint(1, 10)
 
-        add_to_u = normal_gen(canvas[:,:,1], canvas[:,:,0], rand_intensity, rand_centre_x, rand_centre_y, rand_x_sigma, rand_y_sigma)
+        # Use periodic (toroidal) distance so blobs near an edge wrap to the opposite side,
+        # consistent with the periodic boundary conditions used by the solvers.
+        dx = torch.abs(canvas[:, :, 1] - rand_centre_x)
+        dx = torch.minimum(dx, w - dx)
+        dy = torch.abs(canvas[:, :, 0] - rand_centre_y)
+        dy = torch.minimum(dy, h - dy)
+        add_to_u = rand_intensity * torch.exp(
+            -(0.5 * dx**2 / rand_x_sigma**2 + 0.5 * dy**2 / rand_y_sigma**2)
+        )
 
-        initial_u +=  add_to_u
+        initial_u += add_to_u
 
     return initial_u
 

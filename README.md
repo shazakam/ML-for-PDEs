@@ -19,9 +19,9 @@ Train a **Diffusion model** (inspired by [DiffusionPDE](https://arxiv.org/abs/24
 
 # NOTE TO SELF
 What is the dimensionality of the data generated?
-For heat and wave equations a single sample has dimensions (2, T, H, W) where (0, T, H, W) has the 
+For heat and wave equations a single sample has dimensions (2, T, H, W) where (0, T, H, W)
 
 ## TODO:
-- [ ] Pre-processing scripts: MinMax Norm and Z-Norm
+- [x] Pre-processing scripts: MinMax Norm and Z-Norm
 - [ ] Training notebook test and script
 - [ ] Then go onto Deep ONet once we have a semi-function diffusion model
