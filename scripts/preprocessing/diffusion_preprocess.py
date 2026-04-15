@@ -2,6 +2,7 @@ from pathlib import Path
 import argparse
 import yaml
 import sys
+from utils.data_processing_utils import min_max_dataset, z_normal_dataset
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 def parse_args() -> argparse.Namespace:
@@ -14,11 +15,11 @@ def parse_args() -> argparse.Namespace:
                         help="Path to raw data")
     parser.add_argument("--normalisation_type", type=str, default=None,
                         help="Either minmax or z-norm")
-    parser.add_argument("--raw_input_tensor_keys", type=list[str], default=None,
+    parser.add_argument("--tensor_keys", type=list[str], default=None,
                         help="Keys containing initial conditions with tensor inputs / generated solutions")
-    parser.add_argument("--pde-param", type=list[str], default=None,
+    parser.add_argument("--pde-keys", type=list[str], default=None,
                         help="pde specific parameter values")
-    parser.add_argument("--ouptu-dir",  type=Path, default=None,
+    parser.add_argument("--output-dir",  type=Path, default=None,
                         help="Output directory")
     
     args = parser.parse_args()
@@ -27,8 +28,8 @@ def parse_args() -> argparse.Namespace:
     defaults = {
         "data_folder_path": None,
         "normalisation_type": None,
-        "raw_input_tensor_keys":None,
-        "pde_params":None,
+        "tensor_keys":None,
+        "pde_keys":None,
         "output_dir":None
     }
 
@@ -57,5 +58,19 @@ def parse_args() -> argparse.Namespace:
     return argparse.Namespace(**defaults)
 
 def main() -> None:
+    print('here')
+    args = parse_args()
 
-    pass
+    path = Path(args.output_dir)
+    path.mkdir(parents=True, exist_ok=True)
+
+    if args.normalisation_type == 'minmax':
+        min_max_dataset(args.data_folder_path, args.tensor_keys, args.pde_keys, args.output_dir)
+    elif args.normalisation_type == 'z-normal':
+        z_normal_dataset(args.data_folder_path, args.tensor_keys, args.pde_keys, args.output_dir)
+    else:
+        sys.exit('Invalid normalisation type')
+
+
+if __name__ == "__main__":
+    main()

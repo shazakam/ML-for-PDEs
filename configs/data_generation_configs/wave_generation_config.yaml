@@ -1,8 +1,8 @@
-n_samples: 10
-m: 256
+n_samples: 5000
+m: 64
 h: 1
-time: 10.0
-num_steps: 500
+time: 50.0
+num_steps: 800
 c_min: 1
 c_max: 5.0
 device: mps
