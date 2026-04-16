@@ -8,6 +8,7 @@ dependencies = [
     "h5py>=3.15.1",
     "imageio>=2.37.2",
     "lightning>=2.6.1",
+    "lightning-sdk>=2026.4.16",
     "matplotlib>=3.10.8",
     "numpy>=2.4.1",
     "pyaml>=26.2.1",
