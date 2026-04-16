@@ -10,3 +10,5 @@ data/*
 # Virtual environments
 .venv
 CLAUDE.md
+wandb
+*.log

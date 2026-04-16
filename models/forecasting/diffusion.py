@@ -6,11 +6,14 @@ from models.unet.unet import UNet
 
 class DDPM(L.LightningModule):
     
-    def __init__(self, denoising_model: UNet, noise_schedule: torch.Tensor):
+    def __init__(self, denoising_model: UNet, noise_schedule: torch.Tensor,
+                 optimiser: str, learning_rate: float):
         super().__init__()
         self.denoising_model = denoising_model
-        self.noise_schedule = noise_schedule
+        self.register_buffer("noise_schedule", noise_schedule)
         self.T = noise_schedule.shape[0] - 1  # schedule has T+1 points (t=0..T); steps are 1..T-1
+        self.optimiser = optimiser
+        self.learning_rate = learning_rate
 
     def forward(self, u_0 : torch.Tensor) -> torch.Tensor:
         # Take input to be conditioned on u_0
@@ -31,37 +34,57 @@ class DDPM(L.LightningModule):
 
             T = torch.full((u_in.shape[0],), t).to(self.device)
             eps_pred = self.denoising_model(u_in, T)
-            alpha_bar_t = self.noise_schedule[t]
-            beta_t = 1 - self.noise_schedule[t] / self.noise_schedule[t-1]
+            alpha_bar_t = self.noise_schedule[t]#type:ignore
+            beta_t = 1 - self.noise_schedule[t] / self.noise_schedule[t-1]#type:ignore
             alpha_t = 1 - beta_t
 
-            sigma_t = torch.sqrt(beta_t * (1 - self.noise_schedule[t-1]) / (1 - alpha_bar_t))
+            sigma_t = torch.sqrt(beta_t * (1 - self.noise_schedule[t-1]) / (1 - alpha_bar_t))#type:ignore
 
             u_noise_curr = (1/torch.sqrt(alpha_t))*(u_noise_curr - (beta_t/torch.sqrt((1 - alpha_bar_t)))*eps_pred+z*sigma_t)
 
         return u_noise_curr
     
     def training_step(self, batch : torch.Tensor, batch_idx : int):
-        # Takes batch input - param should contain pde specific coefficients
-        u_0, target,  t, param  = batch
+        # u_0    : (B, C, H, W) — conditioning frame(s) + PDE param channels
+        # target : (B, H, W)   — next PDE state to forecast
+        # t      : (B,)        — diffusion timestep sampled by the dataset
+        u_0, target, t = batch
 
-        # Get random noise epsilon
-        eps = torch.randn_like(u_0)
+        target = target.unsqueeze(1)                                    # (B, 1, H, W)
+        eps = torch.randn_like(target)
 
-        # Add Noise to target state
-        u_noisy = torch.sqrt(self.noise_schedule[t])*u_0 + torch.sqrt(1 - self.noise_schedule[t])*eps
+        # Noise the target (not the conditioning)
+        alpha_bar_t = self.noise_schedule[t].view(-1, 1, 1, 1)         # broadcast over (B, 1, H, W) #type:ignore
+        target_noisy = torch.sqrt(alpha_bar_t) * target + torch.sqrt(1 - alpha_bar_t) * eps
 
-        # Concatenate with u_0 so we have [u_0, u_noised_T] along channel axis
-        u_in = torch.cat([u_0, u_noisy], dim=1)
-
-        # Predict Noise
+        # Condition on u_0, denoise target: [u_0, target_noisy] -> predict eps
+        u_in = torch.cat([u_0, target_noisy], dim=1)
         eps_pred = self.denoising_model(u_in, t)
 
-        # Calculate loss and return
         output_loss = F.mse_loss(eps_pred, eps)
-
+        self.log("train_loss", output_loss, on_step=True, on_epoch=True, prog_bar=True)
         return output_loss
-    
+
+    def validation_step(self, batch: torch.Tensor, batch_idx: int):
+        u_0, target, t = batch
+
+        target = target.unsqueeze(1)
+        eps = torch.randn_like(target)
+
+        alpha_bar_t = self.noise_schedule[t].view(-1, 1, 1, 1) #type:ignore
+        target_noisy = torch.sqrt(alpha_bar_t) * target + torch.sqrt(1 - alpha_bar_t) * eps
+
+        u_in = torch.cat([u_0, target_noisy], dim=1)
+        eps_pred = self.denoising_model(u_in, t)
+
+        val_loss = F.mse_loss(eps_pred, eps)
+        self.log("val_loss", val_loss, on_epoch=True, prog_bar=True)
+        return val_loss
+
     def configure_optimizers(self):
-        return super().configure_optimizers()
+        if self.optimiser.lower() == "adam":
+            return torch.optim.Adam(self.parameters(), lr=self.learning_rate)
+        if self.optimiser.lower() == "adamw":
+            return torch.optim.AdamW(self.parameters(), lr=self.learning_rate)
+        raise ValueError(f"Unsupported optimiser: '{self.optimiser}'. Choose 'adam' or 'adamw'.")
     

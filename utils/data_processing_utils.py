@@ -1,5 +1,6 @@
 import torch
 import os
+from tqdm import tqdm
 
 def min_max_dataset(folder_path, tensor_keys, pde_param_keys, save_dir):
     """Apply min-max normalisation to all files in a dataset and save the results.
@@ -26,7 +27,7 @@ def min_max_dataset(folder_path, tensor_keys, pde_param_keys, save_dir):
     pde_param_keys = pde_param_mins.keys()
     tensor_keys = tensor_mins.keys()
 
-    for file in files:
+    for file in tqdm(files):
         data = torch.load(file)
         data = min_max_file(data, tensor_keys, pde_param_keys, tensor_mins, tensor_maxs, pde_param_mins, pde_param_maxs)
     
@@ -135,7 +136,7 @@ def z_normal_dataset(folder_path, tensor_keys, pde_param_keys, save_dir):
 
     files = [f"{folder_path}/{file}" for file in os.listdir(folder_path) if file.endswith('.pt')]
 
-    for file in files:
+    for file in tqdm(files):
         data = torch.load(file, weights_only=False)
         data = z_norm_file(data, tensor_keys, pde_param_keys, tensor_means, tensor_stds, pde_param_means, pde_param_stds)
         basename = os.path.basename(file)

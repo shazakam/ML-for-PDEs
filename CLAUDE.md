@@ -46,7 +46,3 @@ Working branch: `heat-2d`. The `HeatEquation` class has `timestep()` and `genera
 - Tests for Laplacian construction, timestep, simulation run, and dataset generation
 - Reaction-diffusion and wave equation generators (placeholders exist)
 - No linting or test framework configured yet
-
-# REQUIREMENTS
-ALWAYS ASK FOR PERMISSION BEFORE MAKING CHANGES
-DOCUMENT ANY GENERATED CODE

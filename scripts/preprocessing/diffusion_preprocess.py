@@ -58,7 +58,7 @@ def parse_args() -> argparse.Namespace:
     return argparse.Namespace(**defaults)
 
 def main() -> None:
-    print('here')
+    print('Beginning preprocessing...')
     args = parse_args()
 
     path = Path(args.output_dir)

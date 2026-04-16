@@ -16,6 +16,7 @@ dependencies = [
     "torch>=2.10.0",
     "torchvision>=0.25.0",
     "tqdm>=4.67.3",
+    "wandb>=0.26.0",
 ]
 [build-system]
 requires = ["hatchling"]
