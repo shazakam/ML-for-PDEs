@@ -32,7 +32,12 @@ def small_unet() -> UNet:
 @pytest.fixture(scope="module")
 def small_ddpm(small_unet: UNet, small_noise_schedule: torch.Tensor) -> DDPM:
     """DDPM wrapping the small UNet with a 5-step cosine schedule."""
-    return DDPM(denoising_model=small_unet, noise_schedule=small_noise_schedule)
+    return DDPM(
+        denoising_model=small_unet,
+        noise_schedule=small_noise_schedule,
+        optimiser="adam",
+        learning_rate=1e-4,
+    )
 
 
 # ---------------------------------------------------------------------------
