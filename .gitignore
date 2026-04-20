@@ -12,3 +12,4 @@ data/*
 CLAUDE.md
 wandb
 *.log
+*ckpt

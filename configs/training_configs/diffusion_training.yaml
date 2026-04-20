@@ -3,7 +3,7 @@
 # ---------------------------------------------------------------------------
 training_data_path: "data/training_data/wave_minmax"
 field_keys: ["c"]          # PDE parameter keys present in each .pt file
-batch_size: 32
+batch_size: 128
 
 # ---------------------------------------------------------------------------
 # UNet architecture
@@ -25,7 +25,7 @@ cosine_shift: 0.008        # Cosine schedule offset s
 # ---------------------------------------------------------------------------
 # Optimiser
 # ---------------------------------------------------------------------------
-optimiser: cuda
+optimiser: adam
 learning_rate: 0.0001
 
 # ---------------------------------------------------------------------------
@@ -38,6 +38,8 @@ precision: 32              # 32 | 16-mixed
 log_every_n_steps: 50
 
 val_split: 0.1                 # Fraction of dataset held out for validation
+early_stopping_patience: 10   # Stop after this many epochs with no val_loss improvement
+early_stopping_min_delta: 0.0 # Minimum change to count as an improvement
 
 # ---------------------------------------------------------------------------
 # Weights & Biases
