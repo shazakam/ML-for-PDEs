@@ -23,5 +23,5 @@ For heat and wave equations a single sample has dimensions (2, T, H, W) where (0
 
 ## TODO:
 - [x] Pre-processing scripts: MinMax Norm and Z-Norm
-- [ ] Training notebook test and script
+- [ ] Training almost works but loading in the data takes too long we need to combine all the training files into one and use mmap = True in torch.load
 - [ ] Then go onto Deep ONet once we have a semi-function diffusion model

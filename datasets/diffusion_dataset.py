@@ -18,7 +18,7 @@ class DiffusionDataset(Dataset):
 
     def __getitem__(self, index) -> Any:
         file_to_load = index // (self.num_t_steps_per_sample - 1)
-        file = torch.load(self.data_file_paths[file_to_load], weights_only=False)
+        file = torch.load(self.data_file_paths[file_to_load], weights_only=False, mmap=True)
 
         x_from_file = index % (self.num_t_steps_per_sample - 1)
         y_from_file = (index + 1) % self.num_t_steps_per_sample

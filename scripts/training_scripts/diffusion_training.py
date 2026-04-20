@@ -6,7 +6,7 @@ from pathlib import Path
 import torch
 from torch.utils.data import DataLoader, random_split
 import lightning as L
-from lightning.pytorch.callbacks import ModelCheckpoint
+from lightning.pytorch.callbacks import ModelCheckpoint, EarlyStopping
 from lightning.pytorch.loggers import WandbLogger
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -84,6 +84,8 @@ def parse_args() -> argparse.Namespace:
         "model_save_path": None,
         "save_every_n_epochs": 10,
         "val_split": 0.1,
+        "early_stopping_patience": 10,
+        "early_stopping_min_delta": 0.0,
         "wandb_project": None,
         "wandb_entity": None,
         "wandb_run_name": None,
@@ -127,8 +129,8 @@ def main():
     train_size = len(dataset) - val_size
     train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
 
-    train_dataloader = DataLoader(train_dataset, batch_size=cfg.batch_size, shuffle=True)
-    val_dataloader = DataLoader(val_dataset, batch_size=cfg.batch_size)
+    train_dataloader = DataLoader(train_dataset, batch_size=cfg.batch_size, shuffle=True, num_workers= 8, persistent_workers=True)
+    val_dataloader = DataLoader(val_dataset, batch_size=cfg.batch_size, num_workers= 8, persistent_workers=True)
 
     # --- Model ---
     unet = UNet(
@@ -158,6 +160,15 @@ def main():
     )
     wandb_logger.log_hyperparams(vars(cfg))
 
+    # --- Early stopping ---
+    early_stopping_callback = EarlyStopping(
+        monitor="val_loss",
+        patience=cfg.early_stopping_patience,
+        min_delta=cfg.early_stopping_min_delta,
+        mode="min",
+        verbose=True,
+    )
+
     # --- Checkpoint callback — saves best val_loss and periodic snapshots ---
     checkpoint_callback = ModelCheckpoint(
         dirpath=cfg.model_save_path,
@@ -176,11 +187,10 @@ def main():
         precision=cfg.precision,
         log_every_n_steps=cfg.log_every_n_steps,
         logger=wandb_logger,
-        callbacks=[checkpoint_callback],
+        callbacks=[checkpoint_callback, early_stopping_callback],
     )
 
     trainer.fit(model, train_dataloader, val_dataloader)
-
 
 if __name__ == "__main__":
     main()
