@@ -21,7 +21,7 @@ class DiffusionDataset(Dataset):
         file = torch.load(self.data_file_paths[file_to_load], weights_only=False, mmap=True)
 
         x_from_file = index % (self.num_t_steps_per_sample - 1)
-        y_from_file = (index + 1) % self.num_t_steps_per_sample
+        y_from_file = x_from_file + 1
 
         X_t = file['X'][x_from_file]
         pde_params = self.__get_pde_param__(file)
