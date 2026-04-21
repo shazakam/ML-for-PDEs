@@ -1,10 +1,10 @@
-n_samples: 100
+n_samples: 10000
 m: 64
 h: 1
 time: 50.0
 num_steps: 800
 c_min: 1
-c_max: 5.0
+c_max: 3.0
 device: mps
 dtype: float32
 out_dir: data/raw_data/wave_equation_2d_test

@@ -21,6 +21,7 @@ import yaml
 
 from data_generators.boundary_operator import PeriodicBoundary
 from data_generators.heat_2d import HeatEquation
+from utils.data_processing_utils import aggregate_files
 
 DTYPE_MAP = {
     "float32": torch.float32,
@@ -93,8 +94,8 @@ def main() -> None:
     h = args.h if args.h is not None else 1.0 / args.m
     device = torch.device(args.device)
     dtype = DTYPE_MAP[args.dtype]
-
-    args.out_dir = Path(args.out_dir)
+    aggregated_dir = args.out_dir
+    args.out_dir = Path(args.out_dir+'/seperated')
     args.out_dir.mkdir(parents=True, exist_ok=True)
 
     bc = PeriodicBoundary()
@@ -113,8 +114,11 @@ def main() -> None:
     generator.generate_dataset(
         a_min=args.a_min,
         a_max=args.a_max,
-        folder_path=str(args.out_dir),
+        folder_path=str(args.out_dir)
     )
+
+    print('Aggregating files')
+    aggregate_files(str(args.out_dir), aggregated_dir+"/aggregated_2D_heat_sim.pt")
     print("Done.")
 
 
