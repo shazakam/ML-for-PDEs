@@ -256,3 +256,45 @@ def z_norm_file(data, tensor_keys, pde_param_keys, tensor_means, tensor_stds, pd
     return data
 
 
+def aggregate_files(folder_path: str, save_path: str) -> None:
+    import numpy as np
+
+    files = sorted([f for f in os.listdir(folder_path) if f.endswith('.pt')])
+    if not files:
+        raise ValueError(f"No .pt files found in {folder_path}")
+
+    file_paths = [f"{folder_path}/{f}" for f in files]
+    n = len(file_paths)
+
+    first = torch.load(file_paths[0], weights_only=False, mmap=True)
+    X_shape = first['X'].shape  # (T, H, W)
+    dtype = first['X'].dtype
+    scalar_keys = [k for k in first.keys() if k != 'X']
+
+    # Map torch dtype → numpy dtype for the memmap staging file
+    np_dtype = torch.empty(0, dtype=dtype).numpy().dtype
+    tmp_path = save_path + '.tmp.bin'
+
+    try:
+        staging = np.memmap(tmp_path, dtype=np_dtype, mode='w+', shape=(n, *X_shape))
+
+        scalar_data: dict[str, list] = {k: [] for k in scalar_keys}
+        for i, fp in enumerate(tqdm(file_paths)):
+            data = torch.load(fp, weights_only=False, mmap=True)
+            assert data['X'].shape == X_shape, \
+                f"Shape mismatch at {fp}: {data['X'].shape} vs {X_shape}"
+            staging[i] = data['X'].numpy()
+            for k in scalar_keys:
+                scalar_data[k].append(float(data[k]))
+
+        staging.flush()
+
+        result = {'X': torch.from_numpy(np.array(staging))}
+        for k in scalar_keys:
+            result[k] = torch.tensor(scalar_data[k], dtype=dtype)
+
+        torch.save(result, save_path)
+
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)

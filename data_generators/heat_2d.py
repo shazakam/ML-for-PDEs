@@ -124,7 +124,7 @@ class HeatEquation(DataGenerator):
 
     def generate_random_initial_condition(self) -> torch.Tensor:
         init_u = torch.zeros((self.m, self.m))
-        init_gen = random.choice([generate_squares, generate_normals, generate_paths])
+        init_gen = random.choice([generate_normals]) #generate_paths, generate_squares
 
         init_u = init_gen(init_u)
 

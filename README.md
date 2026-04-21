@@ -23,5 +23,15 @@ For heat and wave equations a single sample has dimensions (2, T, H, W) where (0
 
 ## TODO:
 - [x] Pre-processing scripts: MinMax Norm and Z-Norm
+- [ ] Need to group configs according to experiment + output files should have files for params
+- [ ] Integrate pre-processing, train and test split in data_generation_scripts / or write bash scripts
 - [ ] Then go onto Deep ONet once we have a semi-function diffusion model
-- [ ] Make inference functions / scripts / notebooks to visualise model outputs -> We want multistep forecasting and error disttributions with test samples
+- [x] Visualised test output in notebook (it didn't work)
+
+
+## Suggested model changes for wave equation:
+- [ ] Reduce speed size distribution
+- [ ] Condition on two previous timesteps instead of one
+- [ ] Increase model size (should be possible and more efficient now with better data handling)
+
+For wave condition on previous two timesteps, increase model size, issue in the training data as well
