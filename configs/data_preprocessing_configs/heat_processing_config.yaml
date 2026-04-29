@@ -1,0 +1,7 @@
+data_folder_path: "data/raw_data/heat_equation_2d"
+normalisation_type: "minmax"
+tensor_keys: "X"
+pde_keys: "a"
+dataset_name: "heat_equation"
+train_output_dir: "data/train_data"
+test_output_dir: "data/test_data"

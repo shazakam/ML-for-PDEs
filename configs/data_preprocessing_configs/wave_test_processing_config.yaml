@@ -1,5 +1,0 @@
-data_folder_path: "data/raw_data/wave_equation_2d_test"
-normalisation_type: "minmax"
-tensor_keys: "X"
-pde_keys: "c"
-output_dir: "data/test_data/wave_minmax"
