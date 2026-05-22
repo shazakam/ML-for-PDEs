@@ -122,6 +122,9 @@ def parse_args() -> argparse.Namespace:
 def main():
     cfg = parse_args()
 
+    with open(f"{cfg.model_save_path}/model_configs.yaml", "w") as file:
+        yaml.dump(cfg, file)
+
     # --- Dataset & DataLoader ---
     dataset = DiffusionDataset(cfg.training_data_path, field_keys=cfg.field_keys,
                                num_timesteps=cfg.num_timesteps)

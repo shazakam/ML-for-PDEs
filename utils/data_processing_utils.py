@@ -2,9 +2,9 @@ import torch
 import os
 from pathlib import Path
 from tqdm import tqdm
+import numpy as np
 
 def aggregate_files(folder_path: str, save_path: str) -> None:
-    import numpy as np
 
     files = sorted([f for f in os.listdir(folder_path) if f.endswith('.pt')])
     if not files:
@@ -121,8 +121,8 @@ def min_max_aggregated(
 
     Path(train_output_dir).mkdir(parents=True, exist_ok=True)
     Path(test_output_dir).mkdir(parents=True, exist_ok=True)
-    torch.save(train_data, f"{train_output_dir}/{dataset_name}.pt")
-    torch.save(test_data,  f"{test_output_dir}/{dataset_name}.pt")
+    torch.save(train_data, f"{train_output_dir}/{dataset_name}_minmax.pt")
+    torch.save(test_data,  f"{test_output_dir}/{dataset_name}_minmax.pt")
 
 
 def z_normal_aggregated(
@@ -183,5 +183,17 @@ def z_normal_aggregated(
 
     Path(train_output_dir).mkdir(parents=True, exist_ok=True)
     Path(test_output_dir).mkdir(parents=True, exist_ok=True)
-    torch.save(train_data, f"{train_output_dir}/{dataset_name}.pt")
-    torch.save(test_data,  f"{test_output_dir}/{dataset_name}.pt")
+    torch.save(train_data, f"{train_output_dir}/{dataset_name}_z.pt")
+    torch.save(test_data,  f"{test_output_dir}/{dataset_name}_z.pt")
+
+def load_single_sample(field_keys, data_file_path, input_idx):
+    dataset = torch.load(data_file_path, mmap=True)
+
+    sim_idx   = input_idx // (dataset.shape[1])
+    frame_idx = input_idx %  (dataset.shape[1])
+
+    X_t = dataset['X'][sim_idx, frame_idx]                         # (H, W)
+    pde_params = [float(dataset[k][sim_idx]) for k in field_keys]
+    X = torch.stack([X_t] + [torch.full_like(X_t, p) for p in pde_params], dim=0) 
+
+    return X

@@ -28,7 +28,6 @@ What is the dimensionality of the data generated?
 For heat and wave equations a single sample has dimensions (2, T, H, W) where (0, T, H, W)
 
 ## TODO:
-- [ ] Need to group configs according to experiment + output files should have files for params
 - [x] Update the pre-processing functions AND SCRIPTS now that we have the aggregated data files
 - [ ] Test that training works lightning and GPU is faster than MPS
 - [x] Train large model on heat data and pray 
