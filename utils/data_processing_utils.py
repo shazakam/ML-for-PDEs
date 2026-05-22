@@ -72,7 +72,7 @@ def min_max_aggregated(
     pde_param_keys: list[str],
     train_output_dir: str,
     test_output_dir: str,
-    dataset_name: str,
+    dataset_name : str,
     train_ratio: float = 0.8,
 ) -> None:
     """Normalise an aggregated dataset to [0, 1] and split into train / test files.
@@ -94,6 +94,7 @@ def min_max_aggregated(
     :type train_ratio: float
     """
     aggregated_path = _find_aggregated_file(folder_path)
+    dataset_name = dataset_name+'_'+aggregated_path.split('sim')[-1].split('.')[0]
     data = torch.load(aggregated_path, weights_only=False, mmap=True)
 
     N = data['X'].shape[0]
@@ -121,8 +122,8 @@ def min_max_aggregated(
 
     Path(train_output_dir).mkdir(parents=True, exist_ok=True)
     Path(test_output_dir).mkdir(parents=True, exist_ok=True)
-    torch.save(train_data, f"{train_output_dir}/{dataset_name}_minmax.pt")
-    torch.save(test_data,  f"{test_output_dir}/{dataset_name}_minmax.pt")
+    torch.save(train_data, f"{train_output_dir}/{dataset_name}_minmax_N{n_train}.pt")
+    torch.save(test_data,  f"{test_output_dir}/{dataset_name}_minmax_N{N - n_train}.pt")
 
 
 def z_normal_aggregated(
@@ -152,6 +153,7 @@ def z_normal_aggregated(
     :type train_ratio: float
     """
     aggregated_path = _find_aggregated_file(folder_path)
+    dataset_name = dataset_name+'_'+aggregated_path.split('sim')[-1].split('.')[0]
     data = torch.load(aggregated_path, weights_only=False, mmap=True)
 
     N = data['X'].shape[0]

@@ -34,8 +34,8 @@ For heat and wave equations a single sample has dimensions (2, T, H, W) where (0
 - [ ] Need to make a residual test script / function to compare outputs and labels in test test + long time forecasting i.e. How does the error evolve over multi-step predictions?
 - [ ] Then go onto Deep ONet once we have a semi-function diffusion model
 - [x] Visualised test output in notebook (it didn't work)
-- [ ] Pre-processed data file name should include pre-processing method used, number of samples and m and h for problem
-- [ ] When training a model, the model config parameters should be stored in a yaml file in relevant checkpoint folder
+- [x] Pre-processed data file name should include pre-processing method used, number of samples and m and h for problem
+- [x] When training a model, the model config parameters should be stored in a yaml file in relevant checkpoint folder
 
 ## Suggested model changes for wave equation:
 - [ ] Reduce speed size distribution

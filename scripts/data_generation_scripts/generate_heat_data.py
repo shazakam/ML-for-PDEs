@@ -114,11 +114,11 @@ def main() -> None:
     generator.generate_dataset(
         a_min=args.a_min,
         a_max=args.a_max,
-        folder_path=str(args.out_dir)
+        folder_path=f"{str(args.out_dir)}+_m{args.m}_h{args.h}_t{args.time}_s{args.num_steps}"
     )
 
     print('Aggregating files')
-    aggregate_files(str(args.out_dir), aggregated_dir+"/aggregated_2D_heat_sim.pt")
+    aggregate_files(str(args.out_dir), aggregated_dir+f"/aggregated_2D_heat_sim_m{args.m}_h{args.h}_t{args.time}_s{args.num_steps}.pt")
     print("Done.")
 
 
