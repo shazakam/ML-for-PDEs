@@ -95,8 +95,8 @@ def main() -> None:
     device = torch.device(args.device)
     dtype = DTYPE_MAP[args.dtype]
     aggregated_dir = args.out_dir
-    args.out_dir = Path(args.out_dir+'/seperated')
-    args.out_dir.mkdir(parents=True, exist_ok=True)
+    seperated = Path(args.out_dir+'/seperated')
+    seperated.mkdir(parents=True, exist_ok=True)
 
     bc = PeriodicBoundary()
     generator = HeatEquation(
@@ -114,11 +114,11 @@ def main() -> None:
     generator.generate_dataset(
         a_min=args.a_min,
         a_max=args.a_max,
-        folder_path=f"{str(args.out_dir)}+_m{args.m}_h{args.h}_t{args.time}_s{args.num_steps}"
+        folder_path=str(seperated)
     )
 
     print('Aggregating files')
-    aggregate_files(str(args.out_dir), aggregated_dir+f"/aggregated_2D_heat_sim_m{args.m}_h{args.h}_t{args.time}_s{args.num_steps}.pt")
+    aggregate_files(str(args.out_dir)+'/seperated', aggregated_dir+f"/aggregated_2D_heat_sim_m{args.m}_h{args.h}_t{args.time}_s{args.num_steps}.pt")
     print("Done.")
 
 

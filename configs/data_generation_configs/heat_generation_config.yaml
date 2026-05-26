@@ -1,10 +1,10 @@
-n_samples: 10
+n_samples: 1000
 m: 64
-h: 0.1
-time: 60
-num_steps: 400
-a_min: 0.01
-a_max: 0.5
+h: 0.01
+time: 10
+num_steps: 100
+a_min: 0.001
+a_max: 0.3
 device: mps
 dtype: float32
 out_dir: data/raw_data/heat_equation_2d

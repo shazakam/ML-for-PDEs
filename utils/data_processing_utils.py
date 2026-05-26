@@ -94,7 +94,7 @@ def min_max_aggregated(
     :type train_ratio: float
     """
     aggregated_path = _find_aggregated_file(folder_path)
-    dataset_name = dataset_name+'_'+aggregated_path.split('sim')[-1].split('.')[0]
+    dataset_name = dataset_name+aggregated_path.split('sim')[-1].split('.')[0]
     data = torch.load(aggregated_path, weights_only=False, mmap=True)
 
     N = data['X'].shape[0]
@@ -153,7 +153,7 @@ def z_normal_aggregated(
     :type train_ratio: float
     """
     aggregated_path = _find_aggregated_file(folder_path)
-    dataset_name = dataset_name+'_'+aggregated_path.split('sim')[-1].split('.')[0]
+    dataset_name = dataset_name+aggregated_path.split('sim')[-1].split('.')[0]
     data = torch.load(aggregated_path, weights_only=False, mmap=True)
 
     N = data['X'].shape[0]
