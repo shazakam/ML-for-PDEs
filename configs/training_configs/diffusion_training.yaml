@@ -1,7 +1,7 @@
 # ---------------------------------------------------------------------------
 # Data
 # ---------------------------------------------------------------------------
-training_data_path: "data/train_data/heat_equation.pt"
+training_data_path: "data/train_data/heat_equation_m64_h0_minmax_N800.pt"
 field_keys: ["a"]          # PDE parameter keys present in each .pt file
 batch_size: 128
 
@@ -19,7 +19,7 @@ input_size: 64            # Spatial side length (set to 0 for even dimensions)
 # ---------------------------------------------------------------------------
 # Diffusion / noise schedule
 # ---------------------------------------------------------------------------
-num_timesteps: 1000        # Total diffusion steps T
+num_timesteps: 500         # Total diffusion steps T
 cosine_shift: 0.008        # Cosine schedule offset s
 
 # ---------------------------------------------------------------------------
