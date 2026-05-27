@@ -16,6 +16,7 @@ class DiffusionDataset(Dataset):
     def __len__(self) -> int:
         return self.N * (self.num_t_steps_per_sample - 1)
 
+    
     def __getitem__(self, index) -> Any:
         sim_idx   = index // (self.num_t_steps_per_sample - 1)
         frame_idx = index %  (self.num_t_steps_per_sample - 1)
