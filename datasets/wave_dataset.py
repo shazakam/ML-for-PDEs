@@ -2,8 +2,7 @@ from typing import Any
 import torch
 from torch.utils.data import Dataset
 
-
-class DiffusionDataset(Dataset):
+class WaveDiffusionDataset(Dataset):
     def __init__(self, aggregated_path: str, field_keys: list[str], num_timesteps: int) -> None:
         super().__init__()
         self.field_keys = field_keys
@@ -14,15 +13,15 @@ class DiffusionDataset(Dataset):
         self.N, self.num_t_steps_per_sample = self.data['X'].shape[:2]  # (N, T, H, W)
 
     def __len__(self) -> int:
-        return self.N * (self.num_t_steps_per_sample - 1)
+        return self.N * (self.num_t_steps_per_sample - 2)
 
     def __getitem__(self, index) -> Any:
-        sim_idx   = index // (self.num_t_steps_per_sample - 1)
-        frame_idx = index %  (self.num_t_steps_per_sample - 1)
+        sim_idx   = index // (self.num_t_steps_per_sample - 2)
+        frame_idx = index %  (self.num_t_steps_per_sample - 2)
 
-        X_t = self.data['X'][sim_idx, frame_idx]                                         # (H, W)
+        X_0, X_1 = self.data['X'][sim_idx, frame_idx], self.data['X'][sim_idx, frame_idx+1]
         pde_params = [float(self.data[k][sim_idx]) for k in self.field_keys]
-        X = torch.stack([X_t] + [torch.full_like(X_t, p) for p in pde_params], dim=0)   # (1 + num_params, H, W)
-        Y = self.data['X'][sim_idx, frame_idx + 1]                                       # (H, W)
+        X = torch.stack([X_0, X_1] + [torch.full_like(X_0, p) for p in pde_params], dim=0)   # (2 + num_params, H, W)
+        Y = self.data['X'][sim_idx, frame_idx + 2]                                       # (H, W)
         t = torch.randint(1, self.T, (1,)).item()
         return X, Y, t

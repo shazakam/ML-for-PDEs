@@ -29,7 +29,7 @@ For heat and wave equations a single sample has dimensions (2, T, H, W) where (0
 
 ## TODO:
 - [x] Update the pre-processing functions AND SCRIPTS now that we have the aggregated data files
-- [ ] Test that training works lightning and GPU is faster than MPS
+- [x] Test that training works lightning and GPU is faster than MPS
 - [x] Train large model on heat data and pray 
 - [ ] Need to make a residual test script / function to compare outputs and labels in test test + long time forecasting i.e. How does the error evolve over multi-step predictions?
 - [ ] Then go onto Deep ONet once we have a semi-function diffusion model
