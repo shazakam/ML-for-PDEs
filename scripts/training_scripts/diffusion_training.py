@@ -12,7 +12,7 @@ from lightning.pytorch.loggers import WandbLogger
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 
-from datasets.diffusion_dataset import DiffusionDataset
+from datasets.heat_dataset import HeatDiffusionDataset
 from models.unet.unet import UNet
 from models.forecasting.diffusion import DDPM
 from models.model_utils.noise_scheduler import CosineScheduler
@@ -126,7 +126,7 @@ def main():
         yaml.dump(cfg, file)
 
     # --- Dataset & DataLoader ---
-    dataset = DiffusionDataset(cfg.training_data_path, field_keys=cfg.field_keys,
+    dataset = HeatDiffusionDataset(cfg.training_data_path, field_keys=cfg.field_keys,
                                num_timesteps=cfg.num_timesteps)
     val_size = int(len(dataset) * cfg.val_split)
     train_size = len(dataset) - val_size

@@ -3,7 +3,7 @@ import torch
 from torch.utils.data import Dataset
 
 
-class DiffusionDataset(Dataset):
+class HeatDiffusionDataset(Dataset):
     def __init__(self, aggregated_path: str, field_keys: list[str], num_timesteps: int) -> None:
         super().__init__()
         self.field_keys = field_keys
