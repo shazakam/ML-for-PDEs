@@ -1,12 +1,12 @@
 import torch
 import torch.nn as nn
 
-from models.model_utils.config import ACTIVATIONS
+from models.model_utils.activations import ACTIVATIONS
 
 
 class FFN(nn.Module):
 
-    def __init__(self, layer_sizes: list[int], activation: str | list[str],  dtype:torch.dtype, dropout_rate: float | list[float] = 0) -> None:
+    def __init__(self, layer_sizes: list[int], activation: str | list[str], dropout_rate: float | list[float] = 0) -> None:
         super().__init__()
 
         if isinstance(activation, list):
@@ -14,9 +14,9 @@ class FFN(nn.Module):
                 raise ValueError(
                     "Total number of activation functions do not match with sum of hidden layers and output layer!"
                 )
-            self.activation = [ACTIVATIONS[a] for a in activation]
+            self.activation = [ACTIVATIONS[a]() for a in activation]
         else:
-            self.activation = ACTIVATIONS[activation]
+            self.activation = ACTIVATIONS[activation]()
 
         if isinstance(dropout_rate, list):
             if len(layer_sizes) - 1 != len(dropout_rate):
@@ -28,10 +28,10 @@ class FFN(nn.Module):
             self.dropout_rate = [dropout_rate] * (len(layer_sizes) - 1)
 
         self.linears = torch.nn.ModuleList()
-        for i in range(1, len(layer_sizes)):
+        for i in range(0, len(layer_sizes)-1):
             self.linears.append(
                 torch.nn.Linear(
-                    layer_sizes[i - 1], layer_sizes[i], dtype=dtype
+                    layer_sizes[i], layer_sizes[i+1]
                 )
             )
 
