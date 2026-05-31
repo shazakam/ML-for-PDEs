@@ -7,7 +7,7 @@ from torch.optim.lr_scheduler import LRScheduler, ReduceLROnPlateau
 import torch.nn as nn
 from ..model_utils.nn_helpers.conv_block import Conv2DBlock
 from ..model_utils.nn_helpers.ffn import FFN
-
+import torch.nn.functional as F
 class DeepONet(L.LightningModule):
 
     def __init__(self, conv_branch_layers : list,
@@ -17,9 +17,13 @@ class DeepONet(L.LightningModule):
                   ffn_branch_activations: list[str],
                   ffn_trunk_layers : list[int],
                   ffn_trunk_activations : list[str], 
-                  dropout: float) -> None:
+                  dropout: float,
+                  optimiser:str,
+                  learning_rate : float) -> None:
         
         super().__init__()
+        self.optimiser = optimiser
+        self.learning_rate = learning_rate
 
         # Branch Net
         self.branch = ONetBranch(conv_branch_layers, conv_branch_activations, stride_branch, ffn_branch_layers, ffn_branch_activations, dropout)
@@ -34,17 +38,36 @@ class DeepONet(L.LightningModule):
 
         return x_branch @ x_trunk.T
     
-    def training_step(self, *args: Any, **kwargs: Any) -> torch.Tensor | Mapping[str, Any] | None:
-        return super().training_step(*args, **kwargs)
+    def training_step(self, batch) -> torch.Tensor | Mapping[str, Any] | None:
+        # x_branch: (B, measurements + pde_coefficients, H, W) -> Current pde solution at a given time
+        # x_trunk: (B, x, y, t) -> Where and when we want to predict for
+        # y_target: (B, measurments) output measurement at (x,y,t) where t is the number of time steps from snpshot at x_branch
+        x_branch, x_trunk, y_target = batch 
+
+        y_hat = self.forward(x_branch, x_trunk)
+
+        output_loss = F.mse_loss(y_hat, y_target)
+        self.log("train_loss", output_loss, on_step=True, on_epoch=True, prog_bar=True)
+        return output_loss
     
-    def validation_step(self, *args: Any, **kwargs: Any) -> torch.Tensor | Mapping[str, Any] | None:
-        return super().validation_step(*args, **kwargs)
+    def validation_step(self, batch) -> torch.Tensor | Mapping[str, Any] | None:
+        # x_branch: (B, measurements + pde_coefficients, H, W) -> Current pde solution at a given time
+        # x_trunk: (B, x, y, t) -> Where and when we want to predict for
+        # y_target: (B, measurments) output measurement at (x,y,t) where t is the number of time steps from snpshot at x_branch
+        x_branch, x_trunk, y_target = batch 
+
+        y_hat = self.forward(x_branch, x_trunk)
+
+        output_loss = F.mse_loss(y_hat, y_target)
+        self.log("val_loss", output_loss, on_epoch=True, prog_bar=True)
+        return output_loss
     
     def configure_optimizers(self) -> Optimizer | Sequence[Optimizer] | tuple[Sequence[Optimizer], Sequence[LRScheduler | ReduceLROnPlateau]] | None:
-        return 
-    
-    def forward_total(self, x):
-        return
+        if self.optimiser.lower() == "adam":
+            return torch.optim.Adam(self.parameters(), lr=self.learning_rate)
+        if self.optimiser.lower() == "adamw":
+            return torch.optim.AdamW(self.parameters(), lr=self.learning_rate)
+        raise ValueError(f"Unsupported optimiser: '{self.optimiser}'. Choose 'adam' or 'adamw'.") 
 
 # NOTE: ffn_layer input needs to be equal to flattened output of convolutional section 
 class ONetBranch(nn.Module):
