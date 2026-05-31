@@ -2,8 +2,7 @@ import sys
 import argparse
 import yaml
 from pathlib import Path
-
-import torch
+from datetime import datetime
 from torch.utils.data import DataLoader, random_split
 import lightning as L
 from lightning.pytorch.callbacks import ModelCheckpoint, EarlyStopping
@@ -13,6 +12,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 
 from datasets.heat_dataset import HeatDiffusionDataset
+from datasets.wave_dataset import WaveDiffusionDataset
 from models.unet.unet import UNet
 from models.forecasting.diffusion import DDPM
 from models.model_utils.noise_scheduler import CosineScheduler
@@ -33,6 +33,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--field-keys", type=str, nargs="+", default=None,
                         help="PDE parameter keys in each .pt file, e.g. --field-keys c")
     parser.add_argument("--batch-size", type=int, default=None)
+    parser.add_argument("--problem-type", type=str, default=None)
 
     # UNet architecture
     parser.add_argument("--in-channels", type=int, default=None)
@@ -66,6 +67,7 @@ def parse_args() -> argparse.Namespace:
         "training_data_path": None,
         "field_keys": None,
         "batch_size": None,
+        "problem_type":None,
         "in_channels": None,
         "out_channels": None,
         "kernel_size": None,
@@ -101,7 +103,7 @@ def parse_args() -> argparse.Namespace:
     defaults.update(cli)
 
     required = [
-        "training_data_path", "field_keys", "batch_size",
+        "training_data_path", "field_keys", "batch_size", "problem_type",
         "in_channels", "out_channels", "kernel_size", "final_filters", "encoder_dropout",
         "num_timesteps", "cosine_shift",
         "optimiser", "learning_rate",
@@ -122,12 +124,23 @@ def parse_args() -> argparse.Namespace:
 def main():
     cfg = parse_args()
 
-    with open(f"{cfg.model_save_path}/model_configs.yaml", "w") as file:
-        yaml.dump(cfg, file)
+    run_dir = Path(cfg.model_save_path) / datetime.now().strftime("%Y%m%d_%H%M")
+    run_dir.mkdir(parents=True, exist_ok=True)
+    cfg.model_save_path = str(run_dir)
+
+    with open(run_dir / "model_configs.yaml", "w") as file:
+        yaml.dump(vars(cfg), file)
 
     # --- Dataset & DataLoader ---
-    dataset = HeatDiffusionDataset(cfg.training_data_path, field_keys=cfg.field_keys,
-                               num_timesteps=cfg.num_timesteps)
+    if cfg.problem_type == "heat":
+        dataset = HeatDiffusionDataset(cfg.training_data_path, field_keys=cfg.field_keys,
+                                num_timesteps=cfg.num_timesteps)
+    elif cfg.problem_type == "wave":
+        dataset = WaveDiffusionDataset(cfg.training_data_path, field_keys=cfg.field_keys,
+                                num_timesteps=cfg.num_timesteps)
+    else:
+        sys.exit("Problem type not specified and could not load dataset")
+        
     val_size = int(len(dataset) * cfg.val_split)
     train_size = len(dataset) - val_size
     train_dataset, val_dataset = random_split(dataset, [train_size, val_size])

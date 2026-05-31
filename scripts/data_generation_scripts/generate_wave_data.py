@@ -26,6 +26,7 @@ import yaml
 
 from data_generators.boundary_operator import PeriodicBoundary
 from data_generators.wave_2d import WaveEquation
+from utils.data_processing_utils import aggregate_files
 
 DTYPE_MAP = {
     "float32": torch.float32,
@@ -100,7 +101,8 @@ def main() -> None:
     dtype = DTYPE_MAP[args.dtype]
 
     args.out_dir = Path(args.out_dir)
-    args.out_dir.mkdir(parents=True, exist_ok=True)
+    separated = args.out_dir / "separated"
+    separated.mkdir(parents=True, exist_ok=True)
 
     bc = PeriodicBoundary()
     generator = WaveEquation(
@@ -118,8 +120,11 @@ def main() -> None:
     generator.generate_dataset(
         c_min=args.c_min,
         c_max=args.c_max,
-        folder_path=str(args.out_dir),
+        folder_path=str(separated),
     )
+
+    print("Aggregating files")
+    aggregate_files(str(separated), str(args.out_dir / f"aggregated_2D_wave_sim_m{args.m}_h{h}_t{args.time}_s{args.num_steps}.pt"))
     print("Done.")
 
 

@@ -4,6 +4,7 @@
 training_data_path: "data/train_data/heat_equation_m64_h0_minmax_N800.pt"
 field_keys: ["a"]          # PDE parameter keys present in each .pt file
 batch_size: 128
+dataset: "heat"
 
 # ---------------------------------------------------------------------------
 # UNet architecture
