@@ -27,3 +27,40 @@ class HeatDiffusionDataset(Dataset):
         Y = self.data['X'][sim_idx, frame_idx + 1]                                       # (H, W)
         t = torch.randint(1, self.T, (1,)).item()
         return X, Y, t
+    
+class HeatONetDataset(Dataset):
+    def __init__(self, aggregated_path: str, field_keys: list[str]) -> None:
+        super().__init__()
+        self.field_keys = field_keys
+        self.data = torch.load(aggregated_path, weights_only=False, mmap=True)
+        self.N, self.num_t_steps_per_sample, self.H, self.W = self.data['X'].shape
+
+    def __len__(self) -> int:
+        return self.N * (self.num_t_steps_per_sample - 1) * self.H * self.W
+
+    def __getitem__(self, index) -> Any:
+        pixels  = self.H * self.W
+        frames  = self.num_t_steps_per_sample - 1
+
+        sim_idx   = index // (frames * pixels)
+        rem       = index %  (frames * pixels)
+        frame_idx = rem // pixels               # source frame (0 … T-2)
+        pixel_idx = rem %  pixels
+        row, col  = pixel_idx // self.W, pixel_idx % self.W
+
+        # Branch: source frame + PDE params as uniform channels — (1 + num_params, H, W)
+        X_t        = self.data['X'][sim_idx, frame_idx]                                        # (H, W)
+        pde_params = [float(self.data[k][sim_idx]) for k in self.field_keys]
+        branch     = torch.stack([X_t] + [torch.full_like(X_t, p) for p in pde_params], dim=0) # (1 + num_params, H, W)
+
+        # Trunk: normalised (x, y, t) query coordinates — (3,)
+        t_norm = (frame_idx + 1) / (self.num_t_steps_per_sample - 1)
+        trunk  = torch.tensor(
+            [col / (self.W - 1), row / (self.H - 1), t_norm],
+            dtype=torch.float32,
+        )
+
+        # Target: scalar solution value at the query point on the next frame
+        target = self.data['X'][sim_idx, frame_idx + 1, row, col]
+
+        return branch, trunk, target
