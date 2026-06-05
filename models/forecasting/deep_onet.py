@@ -36,7 +36,7 @@ class DeepONet(L.LightningModule):
         x_branch = self.branch(x_branch)
         x_trunk = self.trunk(x_trunk)
 
-        return x_branch @ x_trunk.T
+        return torch.einsum('bp,bp->b', x_branch, x_trunk).unsqueeze(-1)
     
     def training_step(self, batch) -> torch.Tensor | Mapping[str, Any] | None:
         # x_branch: (B, measurements + pde_coefficients, H, W) -> Current pde solution at a given time
