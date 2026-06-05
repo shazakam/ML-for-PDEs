@@ -28,18 +28,7 @@ What is the dimensionality of the data generated?
 For heat and wave equations a single sample has dimensions (2, T, H, W) where (0, T, H, W)
 
 ## TODO:
-- [x] Update the pre-processing functions AND SCRIPTS now that we have the aggregated data files
-- [x] Test that training works lightning and GPU is faster than MPS
-- [x] Train large model on heat data and pray 
-- [ ] Need to make a residual test script / function to compare outputs and labels in test test + long time forecasting i.e. How does the error evolve over multi-step predictions?
-- [ ] Then go onto Deep ONet once we have a semi-function diffusion model
-- [x] Visualised test output in notebook (it didn't work)
-- [x] Pre-processed data file name should include pre-processing method used, number of samples and m and h for problem
-- [x] When training a model, the model config parameters should be stored in a yaml file in relevant checkpoint folder
-
-## Suggested model changes for wave equation:
-- [ ] Reduce speed size distribution
-- [ ] Condition on two previous timesteps instead of one -> Will need to create different torch dataset for wave for this
-- [ ] Increase model size (should be possible and more efficient now with better data handling)
-
-For wave condition on previous two timesteps, increase model size, issue in the training data as well
+- [ ] Need to make testing scripts for DeepONet and Diffusion Model
+- [ ] Testing scripts should produce all desired visualistions (will need expand /visualisations)
+- [ ] Link to WandB project
+- [ ] Create report / add to website outlining stuff learned + theory with pretty visuals!
