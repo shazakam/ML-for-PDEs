@@ -48,4 +48,4 @@ class FFN(nn.Module):
                 )
         x = self.linears[-1](x)
 
-        return
+        return x

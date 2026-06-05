@@ -36,31 +36,31 @@ class HeatONetDataset(Dataset):
         self.N, self.num_t_steps_per_sample, self.H, self.W = self.data['X'].shape
 
     def __len__(self) -> int:
-        return self.N * (self.num_t_steps_per_sample - 1) * self.H * self.W
+        # One item per (simulation, source frame) pair; source frames are 0 … T-2
+        return self.N * (self.num_t_steps_per_sample - 1)
 
     def __getitem__(self, index) -> Any:
-        pixels  = self.H * self.W
-        frames  = self.num_t_steps_per_sample - 1
+        frames     = self.num_t_steps_per_sample - 1
+        sim_idx    = index // frames
+        src_frame  = index %  frames          # source frame in [0, T-2]
 
-        sim_idx   = index // (frames * pixels)
-        rem       = index %  (frames * pixels)
-        frame_idx = rem // pixels               # source frame (0 … T-2)
-        pixel_idx = rem %  pixels
-        row, col  = pixel_idx // self.W, pixel_idx % self.W
-
-        # Branch: source frame + PDE params as uniform channels — (1 + num_params, H, W)
-        X_t        = self.data['X'][sim_idx, frame_idx]                                        # (H, W)
+        # Branch: snapshot at source frame + PDE params — (1 + num_params, H, W)
+        X_src      = self.data['X'][sim_idx, src_frame]
         pde_params = [float(self.data[k][sim_idx]) for k in self.field_keys]
-        branch     = torch.stack([X_t] + [torch.full_like(X_t, p) for p in pde_params], dim=0) # (1 + num_params, H, W)
+        branch     = torch.stack([X_src] + [torch.full_like(X_src, p) for p in pde_params], dim=0)
 
-        # Trunk: normalised (x, y, t) query coordinates — (3,)
-        t_norm = (frame_idx + 1) / (self.num_t_steps_per_sample - 1)
-        trunk  = torch.tensor(
-            [col / (self.W - 1), row / (self.H - 1), t_norm],
-            dtype=torch.float32,
-        )
+        # Sample a random target frame strictly after the source frame
+        tgt_frame  = torch.randint(src_frame + 1, self.num_t_steps_per_sample, (1,)).item()
 
-        # Target: scalar solution value at the query point on the next frame
-        target = self.data['X'][sim_idx, frame_idx + 1, row, col]
+        # Sample a random spatial query point
+        row = torch.randint(0, self.H, (1,)).item()
+        col = torch.randint(0, self.W, (1,)).item()
 
-        return branch, trunk, target
+        # Trunk: (x, y, Δt) — time offset relative to source, normalised to [0, 1]
+        delta_t = (tgt_frame - src_frame) / (self.num_t_steps_per_sample - 1)
+        trunk   = torch.tensor([col / (self.W - 1), row / (self.H - 1), delta_t], dtype=torch.float32)
+
+        # Target: solution value at the query point on the target frame
+        target = self.data['X'][sim_idx, tgt_frame, row, col]
+
+        return branch, trunk, target.unsqueeze(-1)
