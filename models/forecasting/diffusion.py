@@ -6,8 +6,7 @@ from models.unet.unet import UNet
 
 class DDPM(L.LightningModule):
     
-    def __init__(self, denoising_model: UNet, noise_schedule: torch.Tensor,
-                 optimiser: str, learning_rate: float):
+    def __init__(self, denoising_model: UNet, noise_schedule: torch.Tensor, optimiser: str, learning_rate: float):
         super().__init__()
         self.denoising_model = denoising_model
         self.register_buffer("noise_schedule", noise_schedule)
