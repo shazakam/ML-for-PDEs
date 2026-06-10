@@ -2,14 +2,17 @@ from typing import Any
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
 class FNOLayer(nn.Module):
 
     def __init__(self, num_modes : int, d_v : int, ) -> None:
         super().__init__()
         self.num_modes = num_modes
         self.d_v = d_v
-        self.R_high = nn.Parameter(torch.randn(num_modes, num_modes, d_v, d_v)) 
-        self.R_low = nn.Parameter(torch.randn(num_modes, num_modes, d_v, d_v))
+        # Spectral weights act on rfft2 coefficients, so they must be complex.
+        scale = 1 / (d_v * d_v)
+        self.R_high = nn.Parameter(scale * torch.randn(num_modes, num_modes, d_v, d_v, dtype=torch.cfloat))
+        self.R_low = nn.Parameter(scale * torch.randn(num_modes, num_modes, d_v, d_v, dtype=torch.cfloat))
         self.W =  nn.Conv2d(in_channels=d_v, out_channels=d_v, kernel_size=1)
 
     def forward(self, v_t):  # v_t: (B, d_v, H, W)

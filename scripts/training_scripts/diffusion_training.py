@@ -7,6 +7,7 @@ from torch.utils.data import DataLoader, random_split
 import lightning as L
 from lightning.pytorch.callbacks import ModelCheckpoint, EarlyStopping
 from lightning.pytorch.loggers import WandbLogger
+from datetime import datetime
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
@@ -168,10 +169,12 @@ def main():
     )
 
     # --- WandB logger ---
+    now = datetime.now()
+    run_name = cfg.wandb_run_name + '_' + now.strftime("%Y-%m-%d %H:%M")
     wandb_logger = WandbLogger(
         project=cfg.wandb_project,
         entity=cfg.wandb_entity,
-        name=cfg.wandb_run_name,
+        name=run_name,
         log_model=False,
     )
     wandb_logger.log_hyperparams(vars(cfg))
