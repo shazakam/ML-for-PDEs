@@ -3,16 +3,13 @@ from typing import Any, Mapping, Sequence
 import torch 
 import torch.nn as nn
 import lightning as L
-from torch.optim import Optimizer
-from torch.optim.lr_scheduler import LRScheduler, ReduceLROnPlateau
-from model_utils.nn_helpers.ffn import FFN
-from model_utils.nn_helpers.FNO_layer import FNOLayer
+from ..model_utils.nn_helpers.ffn import FFN
+from ..model_utils.nn_helpers.FNO_layer import FNOLayer
 import torch.nn.functional as F
 
 class FNO(L.LightningModule):
-    def __init__(self, d_a : int, d_v : int, num_fourier_layers : int, num_fourier_modes : int, P : FFN, Q : FFN, optimiser: str, learning_rate: float) -> None:
+    def __init__(self, d_v : int, num_fourier_layers : int, num_fourier_modes : int, P : FFN, Q : FFN, optimiser: str, learning_rate: float) -> None:
         super().__init__()
-        self.d_a = d_a
         self.d_v = d_v
         self.num_fourier_layers = num_fourier_layers
         self.num_fourier_modes = num_fourier_modes
@@ -22,18 +19,24 @@ class FNO(L.LightningModule):
 
         self.P = P
         self.Q = Q
-        self.fourier_layers = nn.ModuleList([FNOLayer(self.num_fourier_modes, self.d_v) for i in range(self.num_fourier_layers)])
+        self.fourier_layers = nn.Sequential(*[FNOLayer(self.num_fourier_modes, self.d_v) for _ in range(self.num_fourier_layers)])
 
-    def forward(self, x):
-        x = self.P(x) # Projection layer : Projects every sampled point to a higher dimension
+    def forward(self, x):  # x: (B, C, H, W)
+        # P/Q are FFNs (nn.Linear, act on the last dim) so they need channels-last,
+        # while the FNO layers (rfft2 + Conv2d) need channels-first.
+        x = x.permute(0, 2, 3, 1)            # (B, H, W, C)
+        x = self.P(x)                        # Projection: lift channels C -> d_v, (B, H, W, d_v)
+        x = x.permute(0, 3, 1, 2)            # (B, d_v, H, W)
 
-        # Splits into a spectral branch and a spatial branch. Spectral branch truncates / selects the lower fourier modes to perform operations on. 
+        # Splits into a spectral branch and a spatial branch. Spectral branch truncates / selects the lower fourier modes to perform operations on.
         # Learns / applies spectral weights per mode (in this case for every (k_i, k_j) pair)
         # Applies inverse transform to truncated modes after weights are applied to convert from spectral to spatial space
         # Spatial branch applies a linear transform to every point across channels / dimension which is then summed to the output of the spectral branch
-        x = self.fourier_layers(x)
+        x = self.fourier_layers(x)           # (B, d_v, H, W)
 
-        x = self.Q(x) # Projects output of the fourier layer back to our desired output / to perform backprop with
+        x = x.permute(0, 2, 3, 1)            # (B, H, W, d_v)
+        x = self.Q(x)                        # Project d_v -> output channels, (B, H, W, out)
+        x = x.permute(0, 3, 1, 2)            # (B, out, H, W)
 
         return x
     
