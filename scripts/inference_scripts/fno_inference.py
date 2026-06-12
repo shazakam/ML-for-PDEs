@@ -6,22 +6,24 @@ from utils.inference.fno_inference_utils import fno_forecast
 from utils.data_processing_utils import load_single_sample
 from pathlib import Path
 import torch
-import os
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Pre-process specified dataset")
+    parser = argparse.ArgumentParser(description="Run inference with a trained model")
+
+    parser.add_argument("--config", type=Path, default=None,
+                        help="Path to a YAML config file. CLI args override config values.")
 
     parser.add_argument("--model-folder-path", type=Path, default=None,
                         help="Path to model folder. CLI args override config values.")
 
     parser.add_argument("--data-file-path", type=Path, default=None,
                         help="Path to file containing the aggregated .pt file")
-    
-    parser.add_argument("--input-idx", type=int, default=0, help="Test input index to use")
 
-    parser.add_argument("--forecast-steps", type=int, default=0, help="Number of forecast steps")
+    parser.add_argument("--input-idx", type=int, default=None, help="Test input index to use")
+
+    parser.add_argument("--forecast-steps", type=int, default=None, help="Number of forecast steps")
 
     args = parser.parse_args()
 
@@ -29,7 +31,7 @@ def parse_args() -> argparse.Namespace:
     defaults = {
         "model_folder_path": None,
         "data_file_path": None,
-        "input_idx": None,
+        "input_idx": 0,
         "forecast_steps": None
     }
 
@@ -42,12 +44,12 @@ def parse_args() -> argparse.Namespace:
 
     # CLI args override config/defaults (only when explicitly passed)
     cli = {k: v for k, v in vars(args).items() if k != "config" and v is not None}
+    defaults.update(cli)
 
+    # Validate only after config + CLI values have been merged in
     for k in defaults.keys():
         if defaults[k] is None:
             sys.exit(f"Missing config requirement: {k}")
-
-    defaults.update(cli)
 
     return argparse.Namespace(**defaults)
 

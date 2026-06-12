@@ -1,10 +1,12 @@
-import yaml
-from ...models.unet.unet import UNet
-from ...models.forecasting.diffusion import DDPM
-from ...models.model_utils.noise_scheduler import CosineScheduler
 import torch
 
-def diffusion_forecast(model_path : str, model_cfg, num_steps : int, device : torch.Device, X : torch.Tensor) -> torch.Tensor:
+from models.unet.unet import UNet
+from models.forecasting.diffusion import DDPM
+from models.model_utils.noise_scheduler import CosineScheduler
+
+
+def diffusion_forecast(model_path: str, model_cfg: dict, num_steps: int,
+                       device: torch.device, X: torch.Tensor) -> torch.Tensor:
     diffusion_cfg = model_cfg
 
     # --- Model ---
@@ -17,6 +19,8 @@ def diffusion_forecast(model_path : str, model_cfg, num_steps : int, device : to
         input_size=diffusion_cfg['input_size'],
     )
 
+    # noise_schedule is a registered buffer on DDPM and is restored by load_state_dict,
+    # but DDPM still requires one at construction time.
     noise_schedule = CosineScheduler(T=diffusion_cfg['num_timesteps'], s=diffusion_cfg['cosine_shift']).schedule()
 
     diffusion_model = DDPM(
@@ -26,16 +30,17 @@ def diffusion_forecast(model_path : str, model_cfg, num_steps : int, device : to
         learning_rate=diffusion_cfg['learning_rate']
     )
 
-    diffusion_model.load_state_dict(torch.load(model_path)['state_dict'])
+    diffusion_model.load_state_dict(torch.load(model_path, map_location=device)['state_dict'])
     diffusion_model.to(device)
     diffusion_model.eval()
 
+    # Clone so the caller's tensor is not mutated by the in-place feedback below.
+    X = X.clone()
     multi_step_output = []
-    for t in range(num_steps):
+    for _ in range(num_steps):
         with torch.no_grad():
-            output = diffusion_model(X.to(device).unsqueeze(0))
+            output = diffusion_model(X.to(device).unsqueeze(0))   # (1, 1, H, W)
             multi_step_output.append(output.cpu())
-            X[0] = output.squeeze().cpu()
+            X[0] = output.squeeze().cpu()                          # feed prediction back as new state
 
-    multi_step_output = torch.concat(multi_step_output)
-    return multi_step_output
+    return torch.concat(multi_step_output)                        # (num_steps, 1, H, W)

@@ -191,8 +191,9 @@ def z_normal_aggregated(
 def load_single_sample(field_keys, data_file_path, input_idx):
     dataset = torch.load(data_file_path, mmap=True)
 
-    sim_idx   = input_idx // (dataset.shape[1])
-    frame_idx = input_idx %  (dataset.shape[1])
+    num_frames = dataset['X'].shape[1]                                # (N, T, H, W)
+    sim_idx   = input_idx // num_frames
+    frame_idx = input_idx %  num_frames
 
     X_t = dataset['X'][sim_idx, frame_idx]                         # (H, W)
     pde_params = [float(dataset[k][sim_idx]) for k in field_keys]
