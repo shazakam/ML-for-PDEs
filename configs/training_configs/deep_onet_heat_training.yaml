@@ -3,6 +3,8 @@ training_data_path: data/train_data/heat_equation_m64_h0_minmax_N800.pt
 field_keys: [a]
 batch_size: 512
 problem_type: heat
+# Spatial query points sampled per function each step (dense trunk supervision)
+num_query_points: 128
 
 # Branch net — convolutional section
 # Input: (2, 64, 64)  [1 solution channel + 1 param channel]

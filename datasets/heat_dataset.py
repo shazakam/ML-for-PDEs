@@ -29,9 +29,10 @@ class HeatDiffusionDataset(Dataset):
         return X, Y, t
     
 class HeatONetDataset(Dataset):
-    def __init__(self, aggregated_path: str, field_keys: list[str]) -> None:
+    def __init__(self, aggregated_path: str, field_keys: list[str], num_query_points: int = 128) -> None:
         super().__init__()
         self.field_keys = field_keys
+        self.num_query_points = num_query_points
         self.data = torch.load(aggregated_path, weights_only=False, mmap=True)
         self.N, self.num_t_steps_per_sample, self.H, self.W = self.data['X'].shape
 
@@ -51,19 +52,24 @@ class HeatONetDataset(Dataset):
 
         # Sample a random target frame strictly after the source frame
         tgt_frame  = torch.randint(src_frame + 1, self.num_t_steps_per_sample, (1,)).item()
+        delta_t    = (tgt_frame - src_frame) / (self.num_t_steps_per_sample - 1)
 
-        # Sample a random spatial query point
-        row = torch.randint(0, self.H, (1,)).item()
-        col = torch.randint(0, self.W, (1,)).item()
+        # Sample many spatial query points on that target frame (dense trunk supervision,
+        # as in the original DeepONet which evaluates each function at many output locations).
+        rows = torch.randint(0, self.H, (self.num_query_points,))
+        cols = torch.randint(0, self.W, (self.num_query_points,))
 
-        # Trunk: (x, y, Δt) — time offset relative to source, normalised to [0, 1]
-        delta_t = (tgt_frame - src_frame) / (self.num_t_steps_per_sample - 1)
-        trunk   = torch.tensor([col / (self.W - 1), row / (self.H - 1), delta_t], dtype=torch.float32)
+        # Trunk: (x, y, Δt) per query point — Δt normalised to [0, 1]
+        trunk = torch.stack([
+            cols.to(torch.float32) / (self.W - 1),
+            rows.to(torch.float32) / (self.H - 1),
+            torch.full((self.num_query_points,), delta_t, dtype=torch.float32),
+        ], dim=1)                                                            # (Q, 3)
 
-        # Target: solution value at the query point on the target frame
-        target = self.data['X'][sim_idx, tgt_frame, row, col]
+        # Target: solution value at each query point on the target frame
+        target = self.data['X'][sim_idx, tgt_frame, rows, cols].unsqueeze(-1)  # (Q, 1)
 
-        return branch, trunk, target.unsqueeze(-1)
+        return branch, trunk, target
     
 
 class HeatFNODataset(Dataset):

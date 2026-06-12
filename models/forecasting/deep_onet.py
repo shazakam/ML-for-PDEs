@@ -31,30 +31,37 @@ class DeepONet(L.LightningModule):
         # Trunk Net with FFN
         self.trunk = FFN(layer_sizes=ffn_trunk_layers, activation=ffn_trunk_activations, dropout_rate=dropout)
 
+        # Output bias b0 (as in the original DeepONet: G(u)(y) ≈ Σ_k b_k(u) t_k(y) + b0)
+        self.b0 = nn.Parameter(torch.zeros(1))
+
 
     def forward(self, x_branch, x_trunk) -> Any:
-        x_branch = self.branch(x_branch)
-        x_trunk = self.trunk(x_trunk)
+        # x_branch: (B, C, H, W)   — input field + PDE params for each function in the batch
+        # x_trunk:  (B, Q, 3)      — Q query points (x, y, Δt) per function
+        # returns:  (B, Q, 1)      — operator evaluated at each query point
+        x_branch = self.branch(x_branch)                            # (B, p)
+        x_trunk = self.trunk(x_trunk)                               # (B, Q, p)
 
-        return torch.einsum('bp,bp->b', x_branch, x_trunk).unsqueeze(-1)
-    
+        out = torch.einsum('bp,bqp->bq', x_branch, x_trunk)         # (B, Q)
+        return (out + self.b0).unsqueeze(-1)                        # (B, Q, 1)
+
     def training_step(self, batch) -> torch.Tensor | Mapping[str, Any] | None:
         # x_branch: (B, measurements + pde_coefficients, H, W) -> Current pde solution at a given time
-        # x_trunk: (B, x, y, t) -> Where and when we want to predict for
-        # y_target: (B, measurments) output measurement at (x,y,t) where t is the number of time steps from snpshot at x_branch
-        x_branch, x_trunk, y_target = batch 
+        # x_trunk:  (B, Q, 3)  -> Q query points (x, y, Δt) we want to predict at
+        # y_target: (B, Q, 1)  -> solution at each query point (Δt steps after the x_branch snapshot)
+        x_branch, x_trunk, y_target = batch
 
         y_hat = self.forward(x_branch, x_trunk)
 
         output_loss = F.mse_loss(y_hat, y_target)
         self.log("train_loss", output_loss, on_step=True, on_epoch=True, prog_bar=True)
         return output_loss
-    
+
     def validation_step(self, batch) -> torch.Tensor | Mapping[str, Any] | None:
         # x_branch: (B, measurements + pde_coefficients, H, W) -> Current pde solution at a given time
-        # x_trunk: (B, x, y, t) -> Where and when we want to predict for
-        # y_target: (B, measurments) output measurement at (x,y,t) where t is the number of time steps from snpshot at x_branch
-        x_branch, x_trunk, y_target = batch 
+        # x_trunk:  (B, Q, 3)  -> Q query points (x, y, Δt) we want to predict at
+        # y_target: (B, Q, 1)  -> solution at each query point (Δt steps after the x_branch snapshot)
+        x_branch, x_trunk, y_target = batch
 
         y_hat = self.forward(x_branch, x_trunk)
 

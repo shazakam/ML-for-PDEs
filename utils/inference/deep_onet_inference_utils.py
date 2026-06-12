@@ -54,15 +54,13 @@ def deep_onet_single_image_inference(model: DeepONet, X: torch.Tensor, t: float,
         torch.arange(W, device=device),
         indexing="ij",
     )
-    xs = cols.reshape(-1).float() / (W - 1)        # normalised x (width)
-    ys = rows.reshape(-1).float() / (H - 1)        # normalised y (height)
+    xs = cols.reshape(-1).float() / (W - 1)         # normalised x (width)
+    ys = rows.reshape(-1).float() / (H - 1)         # normalised y (height)
     ts = torch.full_like(xs, float(t))
-    trunk = torch.stack([xs, ys, ts], dim=1)        # (H*W, 3) — matches training [col, row, Δt]
+    trunk = torch.stack([xs, ys, ts], dim=1).unsqueeze(0)   # (1, H*W, 3) — matches training [col, row, Δt]
 
-    # The branch embedding depends only on the input field, so compute it once and take
-    # the inner product against every query's trunk embedding (vectorised over pixels).
-    branch_emb = model.branch(X)                    # (1, p)
-    trunk_emb = model.trunk(trunk)                  # (H*W, p)
-    pred = torch.einsum('bp,qp->q', branch_emb, trunk_emb)   # (H*W,)
+    # One forward over all pixels at once; the branch is encoded once for the single image
+    # and the bias b0 is applied inside forward.
+    pred = model(X, trunk)                          # (1, H*W, 1)
 
     return pred.reshape(H, W)

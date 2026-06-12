@@ -31,6 +31,8 @@ def parse_args() -> argparse.Namespace:
                         help="PDE parameter keys in each .pt file, e.g. --field-keys c")
     parser.add_argument("--batch-size", type=int, default=None)
     parser.add_argument("--problem-type", type=str, default=None)
+    parser.add_argument("--num-query-points", type=int, default=None,
+                        help="Number of spatial query points sampled per function each step")
 
     # DeepONet Branch (convolutional section)
     parser.add_argument("--conv-branch-layers", type=int, nargs="+", default=None,
@@ -74,6 +76,7 @@ def parse_args() -> argparse.Namespace:
         "field_keys": None,
         "batch_size": None,
         "problem_type": None,
+        "num_query_points": 128,
         "conv_branch_layers": None,
         "conv_branch_activations": None,
         "stride_branch": None,
@@ -140,7 +143,8 @@ def main():
 
     # --- Dataset & DataLoader ---
     if cfg.problem_type == "heat":
-        dataset = HeatONetDataset(cfg.training_data_path, field_keys=cfg.field_keys)
+        dataset = HeatONetDataset(cfg.training_data_path, field_keys=cfg.field_keys,
+                                  num_query_points=cfg.num_query_points)
     else:
         sys.exit(f"Unsupported problem_type '{cfg.problem_type}'. Currently supported: 'heat'")
 
