@@ -1,0 +1,34 @@
+# ---------------------------------------------------------------------------
+# Model-comparison config
+#
+# Used by scripts/visualise/model_comparison.py to build a 4-column GIF
+# (target | diffusion | deep_onet | fno) of the forecast rollouts.
+#
+# Run from the repo root, e.g.:
+#   uv run python -m scripts.visualise.model_comparison \
+#       --config configs/inference_configs/model_comparison_config.yaml
+#
+# Any value can be overridden on the command line (CLI wins).
+# ---------------------------------------------------------------------------
+
+# Forecast tensors (T, 1, H, W) produced by the inference scripts. Each script
+# saves to data/inference_output/<model_family>.pt, where <model_family> is the
+# parent folder of the run (diffusion_heat / fno_heat / deep_onet_heat).
+diffusion_pred_path: data/inference_output/diffusion_heat.pt
+fno_pred_path: data/inference_output/fno_heat.pt
+deep_onet_pred_path: data/inference_output/deep_onet_heat.pt
+
+# Aggregated .pt file holding the ground-truth 'X'. Use the SAME file the
+# forecasts were generated from (data_file_path in inference_config.yaml).
+target_path: data/test_data/heat_equation_m64_h0_minmax_N200.pt
+
+# Simulation index to compare against. Must match the run the forecasts used:
+# sim_idx = inference input_idx // num_frames_per_sim.
+target_idx: 0
+
+# Frame the forecast was seeded from: start_frame = inference input_idx % num_frames_per_sim.
+# The target is aligned so frame (start_frame + 1) lines up with prediction frame 0.
+start_frame: 0
+
+# Output GIF path (parent dirs are created automatically).
+save_path: visualisations/model_comparison.gif

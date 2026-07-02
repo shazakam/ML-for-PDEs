@@ -1,0 +1,36 @@
+# ---------------------------------------------------------------------------
+# Inference config
+#
+# Shared by all three inference scripts:
+#   scripts/inference_scripts/diffusion_inference.py
+#   scripts/inference_scripts/fno_inference.py
+#   scripts/inference_scripts/deep_onet.py
+#
+# Run from the repo root, e.g.:
+#   uv run python -m scripts.inference_scripts.fno_inference \
+#       --config configs/inference_configs/inference_config.yaml
+#
+# Any value here can be overridden on the command line (CLI wins), so to point
+# a run at a different model you can either edit `model_folder_path` below or
+# pass --model-folder-path <path>.
+# ---------------------------------------------------------------------------
+
+# Folder of a trained run. Must contain the model checkpoint (*.ckpt) and the
+# saved architecture config (model_configs.yaml); the scripts pick the most
+# recently modified of each.
+#
+# Available runs:
+#   checkpoints/diffusion_heat/20260612_1326
+#   checkpoints/fno_heat/20260610_1449
+#   checkpoints/deep_onet_heat/20260613_2145
+model_folder_path: checkpoints/deep_onet_heat/20260613_2145
+
+# Aggregated .pt dataset to draw the initial condition from (keys: X, plus the
+# PDE-parameter fields named in the model's field_keys, e.g. "a").
+data_file_path: data/test_data/heat_equation_m64_h0_minmax_N200.pt
+
+# Flat index into the dataset (sim_idx = idx // num_frames, frame_idx = idx % num_frames).
+input_idx: 0
+
+# Number of autoregressive rollout steps to forecast.
+forecast_steps: 100

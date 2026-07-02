@@ -98,7 +98,7 @@ def main():
 
     save_path = Path(args.save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
-    anim.save(str(save_path), writer=PillowWriter(fps=5))
+    anim.save(str(save_path), writer=PillowWriter(fps=10))
     plt.close(fig)
     print(f"Saved comparison gif to {save_path}")
 

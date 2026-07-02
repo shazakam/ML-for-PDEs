@@ -1,5 +1,5 @@
 # Data
-training_data_path: data/train_data/heat_equation_m64_h0_minmax_N800.pt
+training_data_path: data/train_data/heat_equation_m64_h0_z_N800.pt
 field_keys: [a]
 batch_size: 512
 problem_type: heat
