@@ -1,10 +1,9 @@
 # ---------------------------------------------------------------------------
 # Inference config
 #
-# Shared by all three inference scripts:
+# Shared by the inference scripts:
 #   scripts/inference_scripts/diffusion_inference.py
 #   scripts/inference_scripts/fno_inference.py
-#   scripts/inference_scripts/deep_onet.py
 #
 # Run from the repo root, e.g.:
 #   uv run python -m scripts.inference_scripts.fno_inference \
@@ -20,17 +19,21 @@
 # recently modified of each.
 #
 # Available runs:
-#   checkpoints/diffusion_heat/20260612_1326
-#   checkpoints/fno_heat/20260610_1449
-#   checkpoints/deep_onet_heat/20260613_2145
-model_folder_path: checkpoints/deep_onet_heat/20260613_2145
-
+#   checkpoints/diffusion_heat/0260703_2117
+#   checkpoints/fno_heat/20260629_2250
+model_folder_path: checkpoints/deep_onet_heat/20260709_0834
 # Aggregated .pt dataset to draw the initial condition from (keys: X, plus the
 # PDE-parameter fields named in the model's field_keys, e.g. "a").
+#
+# IMPORTANT: this must use the SAME normalisation as the model's training data.
+# The current run was trained on *_minmax_* data, so the initial condition must
+# also come from the minmax test split — feeding z-normalised inputs (different
+# range for both X and the param channel) produces garbage.
 data_file_path: data/test_data/heat_equation_m64_h0_minmax_N200.pt
 
 # Flat index into the dataset (sim_idx = idx // num_frames, frame_idx = idx % num_frames).
 input_idx: 0
 
-# Number of autoregressive rollout steps to forecast.
+# Number of frames to forecast. The model is a fixed one-step operator and rollout is
+# autoregressive (each prediction is fed back), so this may exceed num_frames - 1.
 forecast_steps: 100

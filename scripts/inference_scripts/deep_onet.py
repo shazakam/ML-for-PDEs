@@ -77,12 +77,9 @@ def main() -> None:
     field_keys = model_cfg["field_keys"]
     X = load_single_sample(field_keys=field_keys, data_file_path=str(args.data_file_path), input_idx=args.input_idx)
 
-    # Single-step Δt in the same normalisation the trunk was trained with:
-    # (tgt_frame - src_frame) / (num_frames_per_sim - 1).
-    num_frames = torch.load(str(args.data_file_path), mmap=True)['X'].shape[1]
-    step_dt = 1.0 / (num_frames - 1)
-
-    forecast = deep_onet_forecast(model_path, model_cfg, args.forecast_steps, device, X, step_dt)
+    # The model is a fixed one-step operator (u_n -> u_n + Δ); multi-step forecasting
+    # is autoregressive, so forecast_steps can exceed the training horizon.
+    forecast = deep_onet_forecast(model_path, model_cfg, args.forecast_steps, device, X)
     torch.save(forecast, f"data/inference_output/{str(model_cfg_path).split('/')[1]}.pt") 
 
 if __name__ == "__main__":

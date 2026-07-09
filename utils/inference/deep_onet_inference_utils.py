@@ -4,8 +4,7 @@ from models.forecasting.deep_onet import DeepONet
 
 
 def deep_onet_forecast(model_path: str, model_cfg: dict, num_steps: int,
-                       device: torch.device, X: torch.Tensor,
-                       step_dt: float) -> torch.Tensor:
+                       device: torch.device, X: torch.Tensor) -> torch.Tensor:
     cfg = model_cfg
 
     # --- Model ---
@@ -26,25 +25,24 @@ def deep_onet_forecast(model_path: str, model_cfg: dict, num_steps: int,
     model.to(device)
     model.eval()
 
-    # Clone so the caller's tensor is not mutated by the in-place feedback below.
+    # Autoregressive single-step rollout. The model is a fixed one-step operator
+    # u_n -> u_{n+1} (spatial-only trunk, predicts the next-frame field directly), so
+    # multi-step forecasting feeds each prediction back in as the next state. Only the
+    # field channel is updated; the PDE-param channels stay fixed.
     X = X.clone()
     multi_step_output = []
     for _ in range(num_steps):
         with torch.no_grad():
-            # Autoregressive single-step rollout: every step advances the state by one
-            # frame, so the trunk time-offset is the *constant* single-step Δt. This
-            # must match the (tgt_frame - src_frame) / (T - 1) normalisation used in
-            # training, i.e. step_dt = 1 / (num_frames_per_sim - 1).
-            output = deep_onet_single_image_inference(model, X.to(device).unsqueeze(0), step_dt, device)
+            output = deep_onet_single_image_inference(model, X.to(device).unsqueeze(0), device)
             multi_step_output.append(output.unsqueeze(0).unsqueeze(0).cpu())   # (1, 1, H, W)
             X[0] = output.cpu()                                                # feed prediction back
 
     return torch.concat(multi_step_output)                                     # (num_steps, 1, H, W)
 
 
-def deep_onet_single_image_inference(model: DeepONet, X: torch.Tensor, t: float,
+def deep_onet_single_image_inference(model: DeepONet, X: torch.Tensor,
                                      device: torch.device) -> torch.Tensor:
-    # X: (1, C, H, W). Evaluate the operator at every (x, y) query point for time offset t.
+    # X: (1, C, H, W). Evaluate the one-step operator at every (x, y) query point.
     H = X.shape[-2]
     W = X.shape[-1]
 
@@ -56,11 +54,9 @@ def deep_onet_single_image_inference(model: DeepONet, X: torch.Tensor, t: float,
     )
     xs = cols.reshape(-1).float() / (W - 1)         # normalised x (width)
     ys = rows.reshape(-1).float() / (H - 1)         # normalised y (height)
-    ts = torch.full_like(xs, float(t))
-    trunk = torch.stack([xs, ys, ts], dim=1).unsqueeze(0)   # (1, H*W, 3) — matches training [col, row, Δt]
+    trunk = torch.stack([xs, ys], dim=1).unsqueeze(0)   # (1, H*W, 2) — matches training [col, row]
 
-    # One forward over all pixels at once; the branch is encoded once for the single image
-    # and the bias b0 is applied inside forward.
+    # One forward over all pixels at once; the model predicts the next-frame field directly.
     pred = model(X, trunk)                          # (1, H*W, 1)
 
     return pred.reshape(H, W)

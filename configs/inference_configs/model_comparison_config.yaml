@@ -1,8 +1,8 @@
 # ---------------------------------------------------------------------------
 # Model-comparison config
 #
-# Used by scripts/visualise/model_comparison.py to build a 4-column GIF
-# (target | diffusion | deep_onet | fno) of the forecast rollouts.
+# Used by scripts/visualise/model_comparison.py to build a 3-column GIF
+# (target | diffusion | fno) of the forecast rollouts.
 #
 # Run from the repo root, e.g.:
 #   uv run python -m scripts.visualise.model_comparison \
@@ -13,10 +13,9 @@
 
 # Forecast tensors (T, 1, H, W) produced by the inference scripts. Each script
 # saves to data/inference_output/<model_family>.pt, where <model_family> is the
-# parent folder of the run (diffusion_heat / fno_heat / deep_onet_heat).
+# parent folder of the run (diffusion_heat / fno_heat).
 diffusion_pred_path: data/inference_output/diffusion_heat.pt
 fno_pred_path: data/inference_output/fno_heat.pt
-deep_onet_pred_path: data/inference_output/deep_onet_heat.pt
 
 # Aggregated .pt file holding the ground-truth 'X'. Use the SAME file the
 # forecasts were generated from (data_file_path in inference_config.yaml).

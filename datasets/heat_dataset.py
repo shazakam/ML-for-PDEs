@@ -27,8 +27,15 @@ class HeatDiffusionDataset(Dataset):
         Y = self.data['X'][sim_idx, frame_idx + 1]                                       # (H, W)
         t = torch.randint(1, self.T, (1,)).item()
         return X, Y, t
-    
+
+
 class HeatONetDataset(Dataset):
+    """Single-step DeepONet dataset (absolute field prediction).
+
+    Branch: current frame u_n + PDE params. Trunk: (x, y) query coords. The model
+    predicts the absolute *next* frame value at each query point (MSE loss).
+    """
+
     def __init__(self, aggregated_path: str, field_keys: list[str], num_query_points: int = 128) -> None:
         super().__init__()
         self.field_keys = field_keys
@@ -37,40 +44,37 @@ class HeatONetDataset(Dataset):
         self.N, self.num_t_steps_per_sample, self.H, self.W = self.data['X'].shape
 
     def __len__(self) -> int:
-        # One item per (simulation, source frame) pair; source frames are 0 … T-2
+        # One item per (simulation, source frame) pair; source frames are 0 … T-2.
         return self.N * (self.num_t_steps_per_sample - 1)
 
     def __getitem__(self, index) -> Any:
-        frames     = self.num_t_steps_per_sample - 1
-        sim_idx    = index // frames
-        src_frame  = index %  frames          # source frame in [0, T-2]
+        frames    = self.num_t_steps_per_sample - 1
+        sim_idx   = index // frames
+        src_frame = index %  frames          # source frame in [0, T-2]
 
-        # Branch: snapshot at source frame + PDE params — (1 + num_params, H, W)
+        # Branch: snapshot at the source frame + PDE params — (1 + num_params, H, W)
         X_src      = self.data['X'][sim_idx, src_frame]
         pde_params = [float(self.data[k][sim_idx]) for k in self.field_keys]
         branch     = torch.stack([X_src] + [torch.full_like(X_src, p) for p in pde_params], dim=0)
 
-        # Sample a random target frame strictly after the source frame
-        tgt_frame  = torch.randint(src_frame + 1, self.num_t_steps_per_sample, (1,)).item()
-        delta_t    = (tgt_frame - src_frame) / (self.num_t_steps_per_sample - 1)
+        # Fixed single-step operator: always predict the immediately following frame.
+        tgt_frame = src_frame + 1
 
-        # Sample many spatial query points on that target frame (dense trunk supervision,
-        # as in the original DeepONet which evaluates each function at many output locations).
+        # Dense spatial query points on the target frame.
         rows = torch.randint(0, self.H, (self.num_query_points,))
         cols = torch.randint(0, self.W, (self.num_query_points,))
 
-        # Trunk: (x, y, Δt) per query point — Δt normalised to [0, 1]
+        # Trunk: (x, y) per query point — normalised to [0, 1].
         trunk = torch.stack([
             cols.to(torch.float32) / (self.W - 1),
             rows.to(torch.float32) / (self.H - 1),
-            torch.full((self.num_query_points,), delta_t, dtype=torch.float32),
-        ], dim=1)                                                            # (Q, 3)
+        ], dim=1)                                                              # (Q, 2)
 
-        # Target: solution value at each query point on the target frame
+        # Target: absolute next-frame value at each query point.
         target = self.data['X'][sim_idx, tgt_frame, rows, cols].unsqueeze(-1)  # (Q, 1)
 
         return branch, trunk, target
-    
+
 
 class HeatFNODataset(Dataset):
     def __init__(self, aggregated_path: str, field_keys: list[str]) -> None:

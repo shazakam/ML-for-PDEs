@@ -8,6 +8,8 @@ import torch.nn as nn
 from ..model_utils.nn_helpers.conv_block import Conv2DBlock
 from ..model_utils.nn_helpers.ffn import FFN
 import torch.nn.functional as F
+
+
 class DeepONet(L.LightningModule):
 
     def __init__(self, conv_branch_layers : list,
@@ -37,8 +39,8 @@ class DeepONet(L.LightningModule):
 
     def forward(self, x_branch, x_trunk) -> Any:
         # x_branch: (B, C, H, W)   — input field + PDE params for each function in the batch
-        # x_trunk:  (B, Q, 3)      — Q query points (x, y, Δt) per function
-        # returns:  (B, Q, 1)      — operator evaluated at each query point
+        # x_trunk:  (B, Q, 2)      — Q query points (x, y) per function
+        # returns:  (B, Q, 1)      — predicted next-frame field at each query point
         x_branch = self.branch(x_branch)                            # (B, p)
         x_trunk = self.trunk(x_trunk)                               # (B, Q, p)
 
@@ -46,9 +48,9 @@ class DeepONet(L.LightningModule):
         return (out + self.b0).unsqueeze(-1)                        # (B, Q, 1)
 
     def training_step(self, batch) -> torch.Tensor | Mapping[str, Any] | None:
-        # x_branch: (B, measurements + pde_coefficients, H, W) -> Current pde solution at a given time
-        # x_trunk:  (B, Q, 3)  -> Q query points (x, y, Δt) we want to predict at
-        # y_target: (B, Q, 1)  -> solution at each query point (Δt steps after the x_branch snapshot)
+        # x_branch: (B, measurements + pde_coefficients, H, W) -> current pde solution
+        # x_trunk:  (B, Q, 2)  -> Q query points (x, y) we want to predict at
+        # y_target: (B, Q, 1)  -> next-frame solution at each query point
         x_branch, x_trunk, y_target = batch
 
         y_hat = self.forward(x_branch, x_trunk)
@@ -58,9 +60,9 @@ class DeepONet(L.LightningModule):
         return output_loss
 
     def validation_step(self, batch) -> torch.Tensor | Mapping[str, Any] | None:
-        # x_branch: (B, measurements + pde_coefficients, H, W) -> Current pde solution at a given time
-        # x_trunk:  (B, Q, 3)  -> Q query points (x, y, Δt) we want to predict at
-        # y_target: (B, Q, 1)  -> solution at each query point (Δt steps after the x_branch snapshot)
+        # x_branch: (B, measurements + pde_coefficients, H, W) -> current pde solution
+        # x_trunk:  (B, Q, 2)  -> Q query points (x, y) we want to predict at
+        # y_target: (B, Q, 1)  -> next-frame solution at each query point
         x_branch, x_trunk, y_target = batch
 
         y_hat = self.forward(x_branch, x_trunk)
