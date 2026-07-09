@@ -4,7 +4,7 @@
 
 ## Goal
 
-Train a **Diffusion model**, **Deep ONet** and a **Neural Operator** to learn solution operators for 2D PDEs from simulated data.
+Train a **Diffusion model** and a **Neural Operator (FNO)** to learn solution operators for 2D PDEs from simulated data.
 
 ---
 

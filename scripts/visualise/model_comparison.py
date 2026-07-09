@@ -17,12 +17,11 @@ from utils.visualisation_utils import output_comparison, update
 # ---------------------------------------------------------------------------
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Build a 4-column GIF comparing model forecasts to the target.")
+    parser = argparse.ArgumentParser(description="Build a 3-column GIF comparing model forecasts to the target.")
 
     parser.add_argument("--config", type=Path, default=None,
                         help="Path to a YAML config file. CLI args override config values.")
 
-    parser.add_argument("--deep-onet-pred-path", type=str, default=None)
     parser.add_argument("--diffusion-pred-path", type=str, default=None)
     parser.add_argument("--fno-pred-path", type=str, default=None)
     parser.add_argument("--target-path", type=str, default=None,
@@ -37,7 +36,6 @@ def parse_args() -> argparse.Namespace:
     args = parser.parse_args()
 
     defaults = {
-        "deep_onet_pred_path":None,
         "diffusion_pred_path":None,
         "fno_pred_path":None,
         "target_path":None,
@@ -56,7 +54,7 @@ def parse_args() -> argparse.Namespace:
     defaults.update(cli)
 
     required = [
-        "deep_onet_pred_path", "diffusion_pred_path", 
+        "diffusion_pred_path",
         "fno_pred_path", "target_path", "target_idx", "save_path"
     ]
     for key in required:
@@ -74,7 +72,6 @@ def main():
     args = parse_args()
 
     # Load forecasts — each is (T, 1, H, W) from the inference scripts.
-    onet_pred      = torch.load(args.deep_onet_pred_path, mmap=True)
     diffusion_pred = torch.load(args.diffusion_pred_path, mmap=True)
     fno_pred       = torch.load(args.fno_pred_path, mmap=True)
 
@@ -83,12 +80,12 @@ def main():
 
     # The models forecast the states *after* the seed frame, so align the target to
     # the same window: target frame (start + 1) corresponds to prediction frame 0.
-    horizon = min(onet_pred.shape[0], diffusion_pred.shape[0], fno_pred.shape[0])
+    horizon = min(diffusion_pred.shape[0], fno_pred.shape[0])
     start = args.start_frame
     target = target_full[start + 1 : start + 1 + horizon]
 
     # Column order must match the labels in output_comparison.
-    ims, frames_grid = output_comparison(target, diffusion_pred, onet_pred, fno_pred)
+    ims, frames_grid = output_comparison(target, diffusion_pred, fno_pred)
     fig = ims[0].axes.figure
 
     anim = FuncAnimation(

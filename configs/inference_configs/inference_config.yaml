@@ -1,10 +1,9 @@
 # ---------------------------------------------------------------------------
 # Inference config
 #
-# Shared by all three inference scripts:
+# Shared by the inference scripts:
 #   scripts/inference_scripts/diffusion_inference.py
 #   scripts/inference_scripts/fno_inference.py
-#   scripts/inference_scripts/deep_onet.py
 #
 # Run from the repo root, e.g.:
 #   uv run python -m scripts.inference_scripts.fno_inference \
@@ -20,10 +19,9 @@
 # recently modified of each.
 #
 # Available runs:
-#   checkpoints/diffusion_heat/20260612_1326
-#   checkpoints/fno_heat/20260610_1449
-#   checkpoints/deep_onet_heat/20260613_2145
-model_folder_path: checkpoints/deep_onet_heat/20260613_2145
+#   checkpoints/diffusion_heat/0260703_2117
+#   checkpoints/fno_heat/20260629_2250
+model_folder_path: checkpoints/fno_heat/20260629_2250
 
 # Aggregated .pt dataset to draw the initial condition from (keys: X, plus the
 # PDE-parameter fields named in the model's field_keys, e.g. "a").

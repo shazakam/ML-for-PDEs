@@ -43,37 +43,37 @@ def tensor_to_gif(
     imageio.mimsave(filename, frames, fps=fps, loop=0)  # pyright: ignore[reportUnknownMemberType]
 
 
-def output_comparison(target, diffusion_pred, deep_onet_pred, fno_pred):
-    """Build a 1x4 comparison figure (Target | Diffusion | Deep ONet | FNO).
+def output_comparison(target, diffusion_pred, fno_pred):
+    """Build a 1x3 comparison figure (Target | Diffusion | FNO).
 
     Each input is a frame sequence shaped (T, H, W) or (T, 1, H, W) — a
-    singleton channel dim is squeezed and all four are trimmed to the shortest
+    singleton channel dim is squeezed and all three are trimmed to the shortest
     frame count so the columns animate in lockstep on a shared colour scale.
 
-    :returns: (ims, frames_grid) where ims are the four AxesImage
-              handles and frames_grid is the stacked (4, T, H, W) tensor
+    :returns: (ims, frames_grid) where ims are the three AxesImage
+              handles and frames_grid is the stacked (3, T, H, W) tensor
               consumed by :func:`update`.
     :rtype: tuple[list, torch.Tensor]
     """
-    models = ['Target', 'Diffusion', 'Deep ONet', 'FNO']
+    models = ['Target', 'Diffusion', 'FNO']
 
-    tensors = [target, diffusion_pred, deep_onet_pred, fno_pred]
+    tensors = [target, diffusion_pred, fno_pred]
     # Predictions arrive as (T, 1, H, W); drop the singleton channel dim.
     tensors = [t.squeeze(1) if t.dim() == 4 and t.shape[1] == 1 else t for t in tensors]
     # Trim to the shortest frame count so every column has the same number of frames.
     num_frames = min(t.shape[0] for t in tensors)
     tensors = [t[:num_frames] for t in tensors]
 
-    frames_grid = torch.stack(tensors)                       # (4, T, H, W)
+    frames_grid = torch.stack(tensors)                       # (3, T, H, W)
 
     cmap = 'inferno'
     vmin = min(t.min().item() for t in tensors)
     vmax = max(t.max().item() for t in tensors)
 
-    fig, axes = plt.subplots(1, 4, figsize=(16, 4.5))
+    fig, axes = plt.subplots(1, 3, figsize=(12, 4.5))
 
     ims = []
-    for i in range(4):
+    for i in range(3):
         axes[i].set_title(f'{models[i]}', fontsize=13)
         im = axes[i].imshow(
             frames_grid[i, 0].numpy(), animated=True,
