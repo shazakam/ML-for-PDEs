@@ -30,3 +30,8 @@ Ground truth, DDPM forecast, and absolute error for three held-out heat equation
 - [ ] Visualisation script producing desired animation - target : Model1 : Model2 : Model3
 - [ ] Link to WandB project
 - [ ] Create report / add to website outlining stuff learned + theory with pretty visuals!
+
+# GNO TODO
+- [ ] Initial Graph Instantiation with periodic boundaries (this needs a radius function)
+- [ ] Sub graph sampling in dataset when retrieving samples
+- [ ] Relative edge distances as edge features

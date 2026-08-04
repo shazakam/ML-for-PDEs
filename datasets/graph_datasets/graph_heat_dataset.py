@@ -1,0 +1,32 @@
+from typing import Any
+import torch
+from torch.utils.data import Dataset
+from torch_geometric.data import Data
+
+# This Graph Dataset assumes only a single discretisation is used
+class HeatGraphDataset(Dataset):
+    def __init__(self, aggregated_path: str, field_keys: list[str], num_sub_graphs : int) -> None:
+        super().__init__()
+        self.field_keys = field_keys
+        self.num_sub_graphs = num_sub_graphs
+        # Load once with mmap=True — tensor pages are faulted in on demand, so
+        # the full dataset never needs to fit in RAM.
+        self.data = torch.load(aggregated_path, weights_only=False, mmap=True)
+        self.N, self.num_t_steps_per_sample = self.data['X'].shape[:2]  # (N, T, H, W)
+
+        # Instantiate the discretised field graph from which we will draw sub-graphs from
+
+    def __len__(self) -> int:
+        return self.N * (self.num_t_steps_per_sample - 1)
+
+    
+    def __getitem__(self, index) -> Any:        
+        sim_idx   = index // (self.num_t_steps_per_sample - 1)
+        frame_idx = index %  (self.num_t_steps_per_sample - 1)
+
+        X_t = self.data['X'][sim_idx, frame_idx]                                         # (H, W)
+        pde_params = [float(self.data[k][sim_idx]) for k in self.field_keys]
+        # For a given discretised input sample, subsample (num_sub_graphs) subgraphs from our large graph and return them
+
+        return
+    
