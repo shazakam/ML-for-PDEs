@@ -15,16 +15,17 @@ def generate_discretised_graph(X : torch.Tensor, r : float, bc : str):
     
     """
     H, W = X.shape[-1], X.shape[-2]
-    x_y_units = torch.tensor([(1/H)*x for x in range(H)])
-    pos_nodes = torch.cartesian_prod(x_y_units, x_y_units)
-    
+    x_y = torch.tensor([x for x in range(H)])
+    node_indices = torch.cartesian_prod(x_y, x_y)
+    pos_nodes = torch.cartesian_prod(x_y / H, x_y / H)
+
     if bc == 'periodic':
         edge_index, edge_disp = periodic_radius_graph(pos_nodes, r)
 
     else: 
         raise ValueError('Bombaclat not correct bc')
 
-    return edge_index, edge_disp
+    return edge_index, edge_disp, node_indices
         
 
 
