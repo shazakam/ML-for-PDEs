@@ -1,4 +1,6 @@
 
+from typing import Iterable
+
 import torch
 
 def generate_discretised_graph(X : torch.Tensor, r : float, bc : str):
@@ -16,7 +18,7 @@ def generate_discretised_graph(X : torch.Tensor, r : float, bc : str):
     """
     H, W = X.shape[-1], X.shape[-2]
     x_y = torch.tensor([x for x in range(H)])
-    node_indices = torch.cartesian_prod(x_y, x_y)
+    node_spatial_indices = torch.cartesian_prod(x_y, x_y)
     pos_nodes = torch.cartesian_prod(x_y / H, x_y / H)
 
     if bc == 'periodic':
@@ -25,7 +27,7 @@ def generate_discretised_graph(X : torch.Tensor, r : float, bc : str):
     else: 
         raise ValueError('Bombaclat not correct bc')
 
-    return edge_index, edge_disp, node_indices
+    return edge_index, edge_disp, node_spatial_indices
         
 
 
