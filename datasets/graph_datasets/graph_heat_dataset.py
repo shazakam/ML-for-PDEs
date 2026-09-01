@@ -39,9 +39,9 @@ class HeatGraphDataset(Dataset):
         subgraph_node_indices = self.get_subsample_graph_indices()
 
         ## Add PDE Param features and sample u(x,y) value from grid to node edge feature vectors
+        sample_edge_feature_inputs = self.create_edge_features(X_t, subgraph_node_indices, pde_params)
 
-        ### return the N sampled indices
-        return
+        return sample_edge_feature_inputs
 
     def get_subsample_graph_indices(self) -> Iterable:
         """
@@ -90,7 +90,6 @@ class HeatGraphDataset(Dataset):
             # Iterate over PDE Params and append those to nodes as well (currently assumes constant parameter)
             pde_tensors = torch.concatenate([torch.full(dest_node_spatial_measurements.shape, pde_param) for pde_param in pde_params], dim = -1)
 
-            # THE TOTAL GRAPH EDGE INPUTS FOR THE SUBGRAPH SAMPLE
             # This should in theory be of shape (E, 4 + however many pde params for the equation)
             edge_feature_inputs = torch.concatenate([subgraph_node_edges_disp, source_node_spatial_measurements, dest_node_spatial_measurements, pde_tensors], dim = -1)
 

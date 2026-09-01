@@ -1,8 +1,6 @@
 from data_generators.wave_2d import WaveEquation
-import torch
 from utils.visualisation_utils import tensor_to_gif
 from data_generators.boundary_operator import PeriodicBoundary
-import sys
 
 print('Running Test...')
 c = 0.01
