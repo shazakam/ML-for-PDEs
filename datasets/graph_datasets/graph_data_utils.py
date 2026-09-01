@@ -33,7 +33,11 @@ def generate_discretised_graph(X : torch.Tensor, r : float, bc : str):
 
 def periodic_radius_graph(pos: torch.Tensor, r: float, box: float = 1.0):
     """
-    pos : [N, 2] coordinates in [0, box)
+    Input
+    -----
+    pos (torch.Tensor): [N, 2] coordinates in [0, box)
+    r (float) : radius for creating edges across nodes
+    box (float) : size of the domain (usually just normalised to 1.0)
     returns edge_index [2, E] and periodic displacement [E, 2]
     """
     d = pos.unsqueeze(1) - pos.unsqueeze(0)        # [N, N, 2]
