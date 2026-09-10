@@ -65,11 +65,11 @@ class HeatGraphDataset(Dataset):
         subgraph_edge_index, subgraph_edge_disp = create_graph(node_pos = subgraph_spatial_locs, r = self.radius, boundary_condition = self.boundary_conditions)
 
         ## Add PDE Param features and sample u(x,y) value from grid to node edge feature vectors
-        sample_edge_feature_inputs_x = self.create_edge_features(X_t, subgraph_node_indices, pde_params)
+        sample_edge_feature_inputs_x = self.create_edge_features(X_t, subgraph_node_indices, subgraph_edge_disp, pde_params)
 
-        y_hat = self.get_subgraph_labels(X_t1, subgraph_node_indices)
+        y_hat = X_t1[subgraph_node_indices[:, 0], subgraph_node_indices[:, 1]]
 
-        return Data(edge_attr=sample_edge_feature_inputs_x, y=y_hat), sample_edge_feature_inputs_x, y_hat
+        return Data(edge_idx = subgraph_edge_index.T, edge_attr=sample_edge_feature_inputs_x, y=y_hat), subgraph_edge_index, sample_edge_feature_inputs_x, y_hat
 
     def create_edge_features(self, X_t : torch.Tensor, subgraph_node_idx_locs : torch.Tensor, subgraph_edge_index : torch.Tensor, subgraph_edge_disp, pde_params : list) -> torch.Tensor:
 
