@@ -30,6 +30,13 @@ def generate_discretised_graph(X : torch.Tensor, r : float, bc : str):
     return edge_index, edge_disp, node_spatial_indices
         
 
+def create_graph(node_pos : torch.Tensor, r : float, boundary_condition : str, box : float = 1.0):
+    if boundary_condition == 'periodic':
+        edge_index, edge_disp = periodic_radius_graph(node_pos, r, box)
+    else:
+        raise ValueError("invalid boundary condition input")
+
+    return edge_index, edge_disp
 
 def periodic_radius_graph(pos: torch.Tensor, r: float, box: float = 1.0):
     """
