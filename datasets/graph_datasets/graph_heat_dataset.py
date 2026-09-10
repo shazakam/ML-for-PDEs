@@ -31,7 +31,7 @@ class HeatGraphDataset(Dataset):
         H, W = self.data['X'][0,0].shape[-1], self.data['X'][0,0].shape[-2] 
         x_indices = torch.tensor([x for x in range(W)])
         y_indices = torch.tensor([x for x in range(H)])
-        self.node_spatial_indices = torch.cartesian_prod(x_indices, y_indices) # List of (x, y) grid indices
+        self.node_spatial_indices_list = torch.cartesian_prod(x_indices, y_indices) # List of (x, y) grid indices
         self.pos_nodes = torch.cartesian_prod(x_indices / W, y_indices / H) # List of (x, y) spatial positions
 
         if sub_graph_size <= 0 or sub_graph_size > self.node_spatial_indices.shape[0]:
@@ -58,11 +58,11 @@ class HeatGraphDataset(Dataset):
 
         ## Uniformly sample sub_graph_size nodes (without replacement) from the full grid graph.
         ## Sorted so the selected edges come back in global edge_idx order.
-        subgraph_node_indices = torch.randperm(self.num_nodes)[:self.sub_graph_size].sort().values.to(torch.long) # NOTE: This can be made better
-        subgraph_node_idx_locs = self.node_spatial_indices[subgraph_node_indices] # Subgraph Node index locations on total domain!
-        subgraph_spatial_locs = self.pos_nodes[subgraph_node_indices] # Subgraph Node distance values on total domain
+        random_node_indices = torch.randperm(self.num_nodes)[:self.sub_graph_size].sort().values.to(torch.long) # NOTE: This can be made better
+        subgraph_node_indices = self.node_spatial_indices_list[random_node_indices] # Subgraph Node index locations on total domain (x idx, y idx)!
+        subgraph_spatial_locs = self.pos_nodes[subgraph_node_indices] # Subgraph Node distance values on total domain (x , y ) positions!
 
-        subgraph_edge_index, subgraph_edge_disp = create_graph(node_pos=subgraph_spatial_locs, r = self.radius, boundary_condition=self.boundary_conditions)
+        subgraph_edge_index, subgraph_edge_disp = create_graph(node_pos = subgraph_spatial_locs, r = self.radius, boundary_condition = self.boundary_conditions)
 
         ## Add PDE Param features and sample u(x,y) value from grid to node edge feature vectors
         sample_edge_feature_inputs_x = self.create_edge_features(X_t, subgraph_node_indices, pde_params)
@@ -87,28 +87,17 @@ class HeatGraphDataset(Dataset):
 
         # Retrieve spatial measurements at source node locations and edge nodes
         node_spatial_measurements = X_t[subgraph_node_idx_locs[:, 0], subgraph_node_idx_locs[:, 1]] # Subgraph node measurements in domain at t
-        edge_spatial_measurements = node_spatial_measurements[subgraph_edge_index[:, 0], subgraph_edge_index[:, 1]] # E x 1
+
+        # Get spatial measurement for source node and get spatial measurement for destination node and concatenate them
+        edge_spatial_measurements = torch.concat([node_spatial_measurements[subgraph_edge_index[:, 0]].unsqueeze(-1), node_spatial_measurements[subgraph_edge_index[:, 1]].unsqueeze(-1)], dim = -1) # E x 2
 
         # Iterate over PDE Params and append those to nodes as well (currently assumes constant parameter)
         pde_tensors = torch.concatenate([torch.full(edge_spatial_measurements.shape, pde_param) for pde_param in pde_params], dim = -1)
 
-        # This should in theory be of shape (E, 4 + however many pde params for the equation)
-        edge_feature_inputs = torch.concatenate([subgraph_node_edges_disp, source_node_spatial_measurements, dest_node_spatial_measurements, pde_tensors], dim = -1)
+        # This should in theory be of shape (E, 3 + however many pde params for the equation)
+        edge_feature_inputs = torch.concatenate([subgraph_edge_disp, edge_spatial_measurements, pde_tensors], dim = -1)
 
-        return edge_feature_inputs # (E, 4 + however many pde params for the equation)
-
-    def get_source_node_and_edge_node_spatial_measurements(self, X_t, source_node_mask) -> Iterable[torch.Tensor]:
-        source_node_dest_node_edge_indices = self.edge_idx[: , source_node_mask] # Indices for source nodes and for edge destination nodes (2, E)
-
-        # Get spatial measurement features for source node i.e. measurement for Node A at (x,y)
-        source_node_spatial_locs = self.node_spatial_locs[source_node_dest_node_edge_indices[0, :], :] # (E, 2) containing (x, y) source node coordinates
-        source_node_spatial_measurements = X_t[source_node_spatial_locs[:, 0], source_node_spatial_locs[:, 1]].unsqueeze(-1) # This is of shape [E, 1]
-
-        # Get spatial measurements for destination nodes
-        dest_node_spatial_locs = self.node_spatial_locs[source_node_dest_node_edge_indices[1, :], :] # (E, 2) containing (x, y) dest node coordinates
-        dest_node_spatial_measurements = X_t[dest_node_spatial_locs[:, 0], dest_node_spatial_locs[:, 1]].unsqueeze(-1) # This is of shape [E, 1]
-
-        return source_node_spatial_measurements, dest_node_spatial_measurements
+        return edge_feature_inputs # (E, 3 + however many pde params for the equation)
 
     def get_subgraph_labels(self, X_t1 : torch.Tensor, subgraph_node_indices : torch.Tensor) -> torch.Tensor:
         """
