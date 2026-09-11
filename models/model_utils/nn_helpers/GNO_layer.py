@@ -38,7 +38,17 @@ class GNOLayer(MessagePassing):
         return self.activation(self.W(v_t) + out)
 
     def message(self, x_j: torch.Tensor, edge_attr : torch.Tensor) -> torch.Tensor:
-        k = self.integral_kernel(edge_attr).reshape(-1, self.node_feature_dim, self.node_feature_dim)
+        """
+        Input
+        -----
+        x_j (torch.Tensor) : Neighbouring node features around x_i
+        edge_attr (torch.Tensor) : Edge features for edges (x_i, x_j). Has shape E x F where F are the number of features for each edge
+
+        Output
+        -----
+        out (torch.Tensor) : Monte Carlo approximation
+        """
+        k = self.integral_kernel(edge_attr).reshape(-1, self.node_feature_dim, self.node_feature_dim) # Apply the kernel to every (i, j) edge and get output (E, F, F)
         out = torch.einsum('eij,ej -> ei', k, x_j) 
         return out
 
