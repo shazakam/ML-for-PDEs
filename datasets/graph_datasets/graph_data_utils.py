@@ -47,6 +47,7 @@ def periodic_radius_graph(pos: torch.Tensor, r: float, box: float = 1.0):
     box (float) : size of the domain (usually just normalised to 1.0)
     returns edge_index [2, E] and periodic displacement [E, 2]
     """
+
     d = pos.unsqueeze(1) - pos.unsqueeze(0)        # [N, N, 2]
     d = d - box * torch.round(d / box)             # minimum-image wrap
     dist = d.norm(dim=-1)                          # [N, N]
