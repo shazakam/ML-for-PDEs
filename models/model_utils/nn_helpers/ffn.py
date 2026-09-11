@@ -1,8 +1,6 @@
 import torch
 import torch.nn as nn
-
 from models.model_utils.activations import ACTIVATIONS
-
 
 class FFN(nn.Module):
 
