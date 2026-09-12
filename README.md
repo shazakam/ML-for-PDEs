@@ -4,7 +4,7 @@
 
 ## Goal
 
-Train a **Diffusion model** and a **Neural Operator (FNO)** to learn solution operators for 2D PDEs from simulated data.
+Train a **Diffusion model** , **Fourier Neural Operator (FNO)** and a **Graph Neural Operator (GNO)** to learn solution operators for 2D PDEs from simulated data.
 
 ---
 
@@ -24,14 +24,8 @@ Ground truth, DDPM forecast, and absolute error for three held-out heat equation
 ---
 
 ## TODO:
-- [x] Training script for FNO
-- [x] inference script
-- [ ] inference script validation
+- [ ] Train all three models in a final iteration with same training configs and data on GPU for heat equation
+- [ ] Similarily train models on wave equation as well
 - [ ] Visualisation script producing desired animation - target : Model1 : Model2 : Model3
 - [ ] Link to WandB project
 - [ ] Create report / add to website outlining stuff learned + theory with pretty visuals!
-
-# GNO TODO
-- [ ] Initial Graph Instantiation with periodic boundaries (this needs a radius function)
-- [ ] Sub graph sampling in dataset when retrieving samples
-- [ ] Relative edge distances as edge features

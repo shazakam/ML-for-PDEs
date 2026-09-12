@@ -23,26 +23,20 @@ class GNOLayer(MessagePassing):
             raise ValueError(f"Unknown activation '{layer_activation_function}', expected one of {sorted(ACTIVATIONS)}")
         self.activation = ACTIVATIONS[layer_activation_function]()
 
-    def forward(self, x):#v_t : torch.Tensor, edge_index : torch.Tensor, edge_attr : torch.Tensor):
+    def forward(self, v_t : torch.Tensor, edge_index : torch.Tensor, edge_attr : torch.Tensor) -> torch.Tensor:
         """
         Input
         -----
-        v_t (torch.Tensor) : Node features in latent dimension
-        edge_index (torch.Tensor) : Edge connections for subgraph
-        edgde_attr (torch.Tensor) : Edge features passed to integral kernel
+        v_t (torch.Tensor, shape: N x node_input_dim) : Node features in latent dimension
+        edge_index (torch.Tensor, shape: 2 x E) : Edge connections for subgraph
+        edge_attr (torch.Tensor, shape: E x F) : Edge features passed to integral kernel
 
         Output
         ------
         Torch.Tensor : Final output are the transformed graph node features using Monte Carlo Approximation
         """
-        edge_index = x.edge_index
-        v_t = x.x
-        edge_attr = x.edge_attr
-
         out = self.propagate(edge_index, x = v_t, edge_attr = edge_attr)
-        v_t1 = self.activation(self.W(v_t) + out)
-        x.x = v_t1
-        return x
+        return self.activation(self.W(v_t) + out)
 
     def message(self, x_j: torch.Tensor, edge_attr : torch.Tensor) -> torch.Tensor:
         """

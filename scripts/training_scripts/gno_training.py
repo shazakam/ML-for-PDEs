@@ -3,21 +3,17 @@ import argparse
 import yaml
 from pathlib import Path
 from datetime import datetime
-from torch.utils.data import DataLoader
+from torch_geometric.loader import DataLoader
 import lightning as L
 from lightning.pytorch.callbacks import ModelCheckpoint, EarlyStopping
 from lightning.pytorch.loggers import WandbLogger
-from datetime import datetime
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 
-from datasets.heat_dataset import HeatDiffusionDataset
-from datasets.wave_dataset import WaveDiffusionDataset
+from models.forecasting.GNO import GNO
+from datasets.graph_datasets.graph_heat_dataset import HeatGraphDataset
 from datasets.split_utils import split_by_simulation
-from models.unet.unet import UNet
-from models.forecasting.diffusion import DDPM
-from models.model_utils.noise_scheduler import CosineScheduler
 
 
 # ---------------------------------------------------------------------------
@@ -25,7 +21,7 @@ from models.model_utils.noise_scheduler import CosineScheduler
 # ---------------------------------------------------------------------------
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Train a DDPM diffusion model on PDE data.")
+    parser = argparse.ArgumentParser(description="Train a Graph Neural Operator on PDE data.")
 
     parser.add_argument("--config", type=Path, default=None,
                         help="Path to a YAML config file. CLI args override config values.")
@@ -33,21 +29,26 @@ def parse_args() -> argparse.Namespace:
     # Data
     parser.add_argument("--training-data-path", type=str, default=None)
     parser.add_argument("--field-keys", type=str, nargs="+", default=None,
-                        help="PDE parameter keys in each .pt file, e.g. --field-keys c")
+                        help="PDE parameter keys in each .pt file, e.g. --field-keys a")
     parser.add_argument("--batch-size", type=int, default=None)
     parser.add_argument("--problem-type", type=str, default=None)
 
-    # UNet architecture
-    parser.add_argument("--in-channels", type=int, default=None)
-    parser.add_argument("--out-channels", type=int, default=None)
-    parser.add_argument("--kernel-size", type=int, default=None)
-    parser.add_argument("--final-filters", type=int, default=None)
-    parser.add_argument("--encoder-dropout", type=float, default=None)
-    parser.add_argument("--input-size", type=int, default=None)
+    # Graph construction
+    parser.add_argument("--sub-graph-size", type=int, default=None,
+                        help="Number of nodes m sampled uniformly from the grid per training example.")
+    parser.add_argument("--radius", type=float, default=None,
+                        help="Connection radius in normalised [0, 1) domain coordinates.")
+    parser.add_argument("--boundary-condition", type=str, default=None)
 
-    # Diffusion / noise schedule
-    parser.add_argument("--num-timesteps", type=int, default=None)
-    parser.add_argument("--cosine-shift", type=float, default=None)
+    # GNO architecture
+    parser.add_argument("--num-node-input-features", type=int, default=None)
+    parser.add_argument("--num-edge-features", type=int, default=None)
+    parser.add_argument("--num-latent-dim", type=int, default=None)
+    parser.add_argument("--output-dim", type=int, default=None)
+    parser.add_argument("--num-gno-layers", type=int, default=None)
+    parser.add_argument("--kernel-ffn-layers", type=int, nargs="+", default=None)
+    parser.add_argument("--kernel-ffn-dropout", type=float, default=None)
+    parser.add_argument("--gno-layer-activation", type=str, default=None)
 
     # Optimiser
     parser.add_argument("--optimiser", type=str, default=None)
@@ -58,6 +59,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--accelerator", type=str, default=None)
     parser.add_argument("--precision", default=None)
     parser.add_argument("--log-every-n-steps", type=int, default=None)
+    parser.add_argument("--num-workers", type=int, default=None)
 
     # Checkpointing
     parser.add_argument("--model-save-path", type=str, default=None)
@@ -69,15 +71,21 @@ def parse_args() -> argparse.Namespace:
         "training_data_path": None,
         "field_keys": None,
         "batch_size": None,
-        "problem_type":None,
-        "in_channels": None,
-        "out_channels": None,
-        "kernel_size": None,
-        "final_filters": None,
-        "encoder_dropout": None,
-        "input_size": 0,
-        "num_timesteps": None,
-        "cosine_shift": None,
+        "problem_type": None,
+
+        "sub_graph_size": None,
+        "radius": None,
+        "boundary_condition": "periodic",
+
+        "num_node_input_features": None,
+        "num_edge_features": None,
+        "num_latent_dim": None,
+        "output_dim": 1,
+        "num_gno_layers": None,
+        "kernel_ffn_layers": None,
+        "kernel_ffn_dropout": 0.0,
+        "gno_layer_activation": "relu",
+
         "optimiser": None,
         "learning_rate": None,
         "max_epochs": None,
@@ -85,6 +93,7 @@ def parse_args() -> argparse.Namespace:
         "devices": 1,
         "precision": 32,
         "log_every_n_steps": 50,
+        "num_workers": 8,
         "model_save_path": None,
         "save_every_n_epochs": 10,
         "val_split": 0.1,
@@ -107,12 +116,12 @@ def parse_args() -> argparse.Namespace:
 
     required = [
         "training_data_path", "field_keys", "batch_size", "problem_type",
-        "in_channels", "out_channels", "kernel_size", "final_filters", "encoder_dropout",
-        "num_timesteps", "cosine_shift",
-        "optimiser", "learning_rate",
-        "max_epochs", "accelerator",
-        "model_save_path",
+        "sub_graph_size", "radius", "boundary_condition",
+        "num_node_input_features", "num_edge_features", "num_latent_dim",
+        "output_dim", "num_gno_layers", "kernel_ffn_layers",
+        "optimiser", "learning_rate", "max_epochs", "accelerator", "model_save_path",
     ]
+
     for key in required:
         if defaults[key] is None:
             sys.exit(f"Missing required config value: '{key}'")
@@ -136,39 +145,42 @@ def main():
 
     # --- Dataset & DataLoader ---
     if cfg.problem_type == "heat":
-        dataset = HeatDiffusionDataset(cfg.training_data_path, field_keys=cfg.field_keys,
-                                num_timesteps=cfg.num_timesteps)
+        dataset = HeatGraphDataset(
+            aggregated_path=cfg.training_data_path,
+            field_keys=cfg.field_keys,
+            r=cfg.radius,
+            bc=cfg.boundary_condition,
+            sub_graph_size=cfg.sub_graph_size,
+        )
     elif cfg.problem_type == "wave":
-        dataset = WaveDiffusionDataset(cfg.training_data_path, field_keys=cfg.field_keys,
-                                num_timesteps=cfg.num_timesteps)
+        sys.exit("Not implemented yet -- select heat instead")
     else:
         sys.exit("Problem type not specified and could not load dataset")
-        
+
     # Split by simulation, not by frame: consecutive frames of one trajectory are
     # nearly identical, so a flat random_split leaks them across train/val and makes
     # val_loss measure recall rather than generalisation to unseen initial conditions.
     train_dataset, val_dataset = split_by_simulation(dataset, cfg.val_split, seed=cfg.split_seed)
 
-    train_dataloader = DataLoader(train_dataset, batch_size=cfg.batch_size, shuffle=True, num_workers= 8, persistent_workers=True)
-    val_dataloader = DataLoader(val_dataset, batch_size=cfg.batch_size, num_workers= 8, persistent_workers=True)
+    # torch_geometric's DataLoader batches Data objects by disjoint union, so the
+    # variable node/edge counts across sampled subgraphs need no padding.
+    train_dataloader = DataLoader(train_dataset, batch_size=cfg.batch_size, shuffle=True,
+                                  num_workers=cfg.num_workers, persistent_workers=cfg.num_workers > 0)
+    val_dataloader = DataLoader(val_dataset, batch_size=cfg.batch_size,
+                                num_workers=cfg.num_workers, persistent_workers=cfg.num_workers > 0)
 
     # --- Model ---
-    unet = UNet(
-        in_channels=cfg.in_channels,
-        out_channels=cfg.out_channels,
-        kernel_size=cfg.kernel_size,
-        final_filters=cfg.final_filters,
-        encoder_dropout=cfg.encoder_dropout,
-        input_size=cfg.input_size,
-    )
-
-    noise_schedule = CosineScheduler(T=cfg.num_timesteps, s=cfg.cosine_shift).schedule()
-
-    model = DDPM(
-        denoising_model=unet,
-        noise_schedule=noise_schedule,
+    model = GNO(
         optimiser=cfg.optimiser,
         learning_rate=cfg.learning_rate,
+        num_node_input_features=cfg.num_node_input_features,
+        num_edge_features=cfg.num_edge_features,
+        num_latent_dim=cfg.num_latent_dim,
+        output_dim=cfg.output_dim,
+        num_gno_layers=cfg.num_gno_layers,
+        kernel_ffn_layers=list(cfg.kernel_ffn_layers),
+        kernel_ffn_dropout=cfg.kernel_ffn_dropout,
+        GNO_layer_activation=cfg.gno_layer_activation,
     )
 
     # --- WandB logger ---
@@ -197,7 +209,7 @@ def main():
         monitor="val_loss",
         save_top_k=3,
         mode="min",
-        filename="ddpm-{epoch:04d}-{val_loss:.4f}",
+        filename="gno-{epoch:04d}-{val_loss:.4f}",
         every_n_epochs=cfg.save_every_n_epochs,
     )
 
@@ -213,6 +225,7 @@ def main():
     )
 
     trainer.fit(model, train_dataloader, val_dataloader)
+
 
 if __name__ == "__main__":
     main()

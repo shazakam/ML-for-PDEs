@@ -3,7 +3,7 @@ import argparse
 import yaml
 from pathlib import Path
 from datetime import datetime
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader
 import lightning as L
 from lightning.pytorch.callbacks import ModelCheckpoint, EarlyStopping
 from lightning.pytorch.loggers import WandbLogger
@@ -15,6 +15,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 
 from datasets.heat_dataset import HeatFNODataset
+from datasets.split_utils import split_by_simulation
 # from datasets.wave_dataset import WaveDiffusionDataset
 
 
@@ -95,6 +96,7 @@ def parse_args() -> argparse.Namespace:
         "model_save_path": None,
         "save_every_n_epochs": 10,
         "val_split": 0.1,
+        "split_seed": 42,
         "early_stopping_patience": 10,
         "early_stopping_min_delta": 0.0,
         "wandb_project": None,
@@ -148,9 +150,10 @@ def main():
     else:
         sys.exit("Problem type not specified and could not load dataset")
         
-    val_size = int(len(dataset) * cfg.val_split)
-    train_size = len(dataset) - val_size
-    train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
+    # Split by simulation, not by frame: consecutive frames of one trajectory are
+    # nearly identical, so a flat random_split leaks them across train/val and makes
+    # val_loss measure recall rather than generalisation to unseen initial conditions.
+    train_dataset, val_dataset = split_by_simulation(dataset, cfg.val_split, seed=cfg.split_seed)
 
     train_dataloader = DataLoader(train_dataset, batch_size=cfg.batch_size, shuffle=True, num_workers= 8, persistent_workers=True)
     val_dataloader = DataLoader(val_dataset, batch_size=cfg.batch_size, num_workers= 8, persistent_workers=True)

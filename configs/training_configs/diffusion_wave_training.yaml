@@ -38,7 +38,8 @@ devices: 1                 # Number of devices to use (e.g. 1 for single GPU, -1
 precision: 16              # 32 | 16-mixed
 log_every_n_steps: 50
 
-val_split: 0.1                 # Fraction of dataset held out for validation
+val_split: 0.1                 # Fraction of *simulations* held out for validation
+split_seed: 42                 # Fixes which simulations are held out, so the split is reproducible
 early_stopping_patience: 15   # Stop after this many epochs with no val_loss improvement
 early_stopping_min_delta: 0.00001 # Minimum change to count as an improvement
 

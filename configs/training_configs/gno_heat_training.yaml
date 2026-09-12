@@ -1,0 +1,84 @@
+# ---------------------------------------------------------------------------
+# Data
+# ---------------------------------------------------------------------------
+training_data_path: "data/train_data/heat_equation_m64_h0_minmax_N800.pt"
+field_keys: ["a"]          # PDE parameter keys present in each .pt file
+batch_size: 16             # Graphs per batch; total nodes = batch_size * sub_graph_size
+problem_type: "heat"
+
+# ---------------------------------------------------------------------------
+# Graph construction
+#
+# Each training example samples sub_graph_size (m) nodes uniformly from the
+# 64x64 grid, then builds the periodic radius graph induced on those nodes.
+# Induced degree scales as (full-grid degree) * m / n, with n = 64*64 = 4096:
+#
+#   m=256 r=0.10 -> degree  8.1,  2078 edges/graph
+#   m=256 r=0.15 -> degree 18.2,  4650 edges/graph   <- chosen
+#   m=512 r=0.15 -> degree 36.3, 18590 edges/graph
+#
+# Degree below ~8 starves message passing; above ~40 the per-edge kernel
+# tensor (E x num_latent_dim^2) dominates memory. None of the above produce
+# isolated nodes.
+# ---------------------------------------------------------------------------
+sub_graph_size: 256
+radius: 0.15               # Normalised [0, 1) domain coordinates, not grid cells
+boundary_condition: "periodic"
+
+# ---------------------------------------------------------------------------
+# GNO architecture
+#
+# Node features x = [pos_x, pos_y, u(x,t)]                     -> 3
+# Edge features  = [disp_x, disp_y, u_src, u_dst, *field_keys] -> 4 + len(field_keys) = 5
+#
+# The integral kernel FFN maps edge features to a flattened
+# num_latent_dim x num_latent_dim matrix applied per edge, so
+# kernel_ffn_layers[0] must equal num_edge_features and
+# kernel_ffn_layers[-1] must equal num_latent_dim ** 2. The model enforces both.
+#
+# Memory note: each layer materialises an (E, d_v, d_v) tensor per forward pass.
+# At batch_size 16 that is ~74k edges; d_v=16 -> ~76 MB/layer, d_v=64 -> ~1.2 GB/layer.
+# ---------------------------------------------------------------------------
+num_node_input_features: 3
+num_edge_features: 5
+num_latent_dim: 32         # d_v — latent width; kernel output is d_v^2 = 256
+output_dim: 1              # Predicting scalar u(x, t+1) per node
+
+num_gno_layers: 4
+kernel_ffn_layers: [5, 256, 1024]   # num_edge_features -> hidden -> num_latent_dim^2
+kernel_ffn_dropout: 0.0
+gno_layer_activation: "relu"
+
+# ---------------------------------------------------------------------------
+# Optimiser
+# ---------------------------------------------------------------------------
+optimiser: adamw           # Decoupled weight decay; better generalization than adam
+learning_rate: 0.0001
+
+# ---------------------------------------------------------------------------
+# Training (PyTorch Lightning Trainer)
+# ---------------------------------------------------------------------------
+max_epochs: 200            # Early stopping will cap actual training
+accelerator: mps           # cpu | cuda | mps
+devices: 1
+precision: 32
+log_every_n_steps: 50
+num_workers: 8             # Subgraph sampling happens per item, so workers help
+
+val_split: 0.1                    # Fraction of *simulations* held out for validation
+split_seed: 42                    # Fixes which simulations are held out, so the split is reproducible
+early_stopping_patience: 15       # Stop after this many epochs with no val_loss improvement
+early_stopping_min_delta: 0.00001 # Minimum change to count as an improvement
+
+# ---------------------------------------------------------------------------
+# Weights & Biases
+# ---------------------------------------------------------------------------
+wandb_project: "ml-for-pdes"
+wandb_entity: 'louis-godtfredsen'
+wandb_run_name: 'GNO'
+
+# ---------------------------------------------------------------------------
+# Checkpointing
+# ---------------------------------------------------------------------------
+model_save_path: "checkpoints/gno_heat"
+save_every_n_epochs: 10
