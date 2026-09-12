@@ -13,16 +13,17 @@ class GNOLayer(MessagePassing):
     layer_sizes (list[int]) : Contains layer size for a fully connected feed forward network. First value is input size, last value is output size
     dropout_rate (float | list[float]) : Dropout rates for either all or individual layers
     """
-    def __init__(self, node_feature_dim : int, layer_activation_function : str, layer_sizes: list[int], dropout_rate: float | list[float] = 0) -> None:
+    def __init__(self, node_input_dim : int, layer_activation_function : str, layer_sizes: list[int], dropout_rate: float | list[float] = 0) -> None:
         super().__init__(aggr = 'mean')
-        self.node_feature_dim = node_feature_dim
+        self.node_input_dim = node_input_dim
         self.integral_kernel = FFN(layer_sizes=layer_sizes, activation='relu', dropout_rate=dropout_rate) # Needs to map to node_feature_dim x node_feature_dim
-        self.W = nn.Linear(in_features=node_feature_dim, out_features=node_feature_dim)
+        self.W = nn.Linear(in_features=node_input_dim, out_features=node_input_dim)
+
         if layer_activation_function not in ACTIVATIONS:
             raise ValueError(f"Unknown activation '{layer_activation_function}', expected one of {sorted(ACTIVATIONS)}")
         self.activation = ACTIVATIONS[layer_activation_function]()
 
-    def forward(self, v_t : torch.Tensor, edge_index : torch.Tensor, edge_attr : torch.Tensor):
+    def forward(self, x):#v_t : torch.Tensor, edge_index : torch.Tensor, edge_attr : torch.Tensor):
         """
         Input
         -----
@@ -34,8 +35,14 @@ class GNOLayer(MessagePassing):
         ------
         Torch.Tensor : Final output are the transformed graph node features using Monte Carlo Approximation
         """
-        out = self.propagate(edge_index, x=v_t, edge_attr = edge_attr)
-        return self.activation(self.W(v_t) + out)
+        edge_index = x.edge_index
+        v_t = x.x
+        edge_attr = x.edge_attr
+
+        out = self.propagate(edge_index, x = v_t, edge_attr = edge_attr)
+        v_t1 = self.activation(self.W(v_t) + out)
+        x.x = v_t1
+        return x
 
     def message(self, x_j: torch.Tensor, edge_attr : torch.Tensor) -> torch.Tensor:
         """
@@ -48,7 +55,7 @@ class GNOLayer(MessagePassing):
         -----
         out (torch.Tensor) : Monte Carlo approximation
         """
-        k = self.integral_kernel(edge_attr).reshape(-1, self.node_feature_dim, self.node_feature_dim) # Apply the kernel to every (i, j) edge and get output (E, F, F)
+        k = self.integral_kernel(edge_attr).reshape(-1, self.node_input_dim, self.node_input_dim) # Apply the kernel to every (i, j) edge and get output (E, F, F)
         out = torch.einsum('eij,ej -> ei', k, x_j) 
         return out
 

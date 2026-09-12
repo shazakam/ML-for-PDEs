@@ -50,17 +50,17 @@ class HeatGraphDataset(Dataset):
 
         subgraph_node_indices = self.node_grid_indices[random_node_grid_list_indices] # Subgraph Node index locations on total domain (x idx, y idx)!
         subgraph_spatial_locs = self.node_spatial_pos[random_node_grid_list_indices] # Subgraph Node distance values on total domain (x , y) positions!
-        
         subgraph_edge_index, subgraph_edge_disp = create_graph(node_pos = subgraph_spatial_locs, r = self.radius, boundary_condition = self.boundary_conditions)
 
         ## Add PDE Param features and sample u(x,y) value from grid to node edge feature vectors
-        sample_edge_feature_inputs_x = self.create_edge_features(X_t, subgraph_node_indices, subgraph_edge_index, subgraph_edge_disp, pde_params)
+        sample_edge_feature_inputs_x, subgraph_node_measurements = self.create_edge_features(X_t, subgraph_node_indices, subgraph_edge_index, subgraph_edge_disp, pde_params)
 
         y_hat = X_t1[subgraph_node_indices[:, 0], subgraph_node_indices[:, 1]].unsqueeze(-1)
         
         # num_nodes is declared explicitly: inferring it from edge_index would under-count
         # whenever a sampled node ends up isolated, silently misaligning y under batching.
-        return Data(edge_index = subgraph_edge_index,
+        return Data(x=torch.concatenate([subgraph_spatial_locs, subgraph_node_measurements.unsqueeze(-1)], dim = -1),
+                    edge_index = subgraph_edge_index,
                     edge_attr = sample_edge_feature_inputs_x,
                     y = y_hat,
                     num_nodes = self.sub_graph_size)
@@ -69,7 +69,7 @@ class HeatGraphDataset(Dataset):
                              subgraph_node_idx_locs : torch.Tensor,
                              subgraph_edge_index : torch.Tensor, 
                              subgraph_edge_disp : torch.Tensor, 
-                             pde_params : list) -> torch.Tensor:
+                             pde_params : list) -> tuple[torch.Tensor, torch.Tensor]:
 
         """
         Inputs
@@ -98,7 +98,7 @@ class HeatGraphDataset(Dataset):
         # (E, 4 + however many pde params for the equation)
         edge_feature_inputs = torch.concatenate([subgraph_edge_disp, edge_spatial_measurements, pde_tensors], dim = -1)
 
-        return edge_feature_inputs # (E, 4 + however many pde params for the equation)
+        return edge_feature_inputs, node_spatial_measurements # (E, 4 + however many pde params for the equation)
 
 
     
