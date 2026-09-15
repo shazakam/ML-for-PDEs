@@ -138,15 +138,10 @@ def get_subgraph_grid_size(num_subgraph_nodes : int):
         return int(sqrt_val), int(sqrt_val)
 
     else:
-        cur_val = int(sqrt_val) + 1
         cur_best_score = -1
         cur_best_pair = [-1,-1]
-        done = False
 
-        while not done:
-            if cur_val > (num_subgraph_nodes // 2):
-                done = True
-                break
+        for cur_val in range(int(sqrt_val) + 1, num_subgraph_nodes // 2):
 
             if (num_subgraph_nodes % cur_val == 0) and (cur_val <= num_subgraph_nodes // 2):
                 summed_factors = (num_subgraph_nodes // cur_val) + cur_val
@@ -154,9 +149,5 @@ def get_subgraph_grid_size(num_subgraph_nodes : int):
                     cur_best_score = summed_factors
                     cur_best_pair[0] = num_subgraph_nodes // cur_val
                     cur_best_pair[1] = cur_val
-                    cur_val += 1
-
-            else:
-                cur_val += 1
 
         return cur_best_pair[0], cur_best_pair[1]
