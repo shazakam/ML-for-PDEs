@@ -2,7 +2,7 @@ from typing import Any
 import torch
 from torch.utils.data import Dataset
 from torch_geometric.data import Data
-from .graph_data_utils import create_graph
+from .graph_data_utils import create_edge_features, create_graph
 
 class HeatGraphDataset(Dataset):
     def __init__(self, aggregated_path: str, field_keys: list[str], r : float, bc : str, sub_graph_size : int) -> None:
@@ -53,7 +53,7 @@ class HeatGraphDataset(Dataset):
         subgraph_edge_index, subgraph_edge_disp = create_graph(node_pos = subgraph_spatial_locs, r = self.radius, boundary_condition = self.boundary_conditions)
 
         ## Add PDE Param features and sample u(x,y) value from grid to node edge feature vectors
-        sample_edge_feature_inputs_x, subgraph_node_measurements = self.create_edge_features(X_t, subgraph_node_indices, subgraph_edge_index, subgraph_edge_disp, pde_params)
+        sample_edge_feature_inputs_x, subgraph_node_measurements = create_edge_features(X_t, subgraph_node_indices, subgraph_edge_index, subgraph_edge_disp, pde_params)
 
         y_hat = X_t1[subgraph_node_indices[:, 0], subgraph_node_indices[:, 1]].unsqueeze(-1)
         
@@ -65,40 +65,4 @@ class HeatGraphDataset(Dataset):
                     y = y_hat,
                     num_nodes = self.sub_graph_size)
     
-    def create_edge_features(self, X_t : torch.Tensor, 
-                             subgraph_node_idx_locs : torch.Tensor,
-                             subgraph_edge_index : torch.Tensor, 
-                             subgraph_edge_disp : torch.Tensor, 
-                             pde_params : list) -> tuple[torch.Tensor, torch.Tensor]:
-
-        """
-        Inputs
-        -------
-        X_t (torch.Tensor, shape: H x W) : Input sample to create subgraph edge features for
-        subgraph_node_idx_locs (torch.Tensor, shape: m x 2) : (x, y) grid indices of the sampled subgraph nodes
-        subgraph_edge_index (torch.Tensor, shape: 2 x E) : Local edge index over the m sampled nodes
-        subgraph_edge_disp (torch.Tensor, shape: E x 2) : Minimum-image displacement for each edge
-        pde_params (list) : List containing PDE Params for given sample, currently only works with a constant PDE coefficient for a given sample i.e. non-evolving over time
-
-        Outputs
-        -------
-        subgraph_edge_features (torch.Tensor, shape : E x (4 + num pde params)) : Edge features laid out as
-        [disp_x, disp_y, u_src, u_dst, *pde_params] for a subgraph of the sample X_t
-        """
-
-        # Retrieve spatial measurements at source node locations and edge nodes
-        node_spatial_measurements = X_t[subgraph_node_idx_locs[:, 0], subgraph_node_idx_locs[:, 1]] # Subgraph node measurements in domain at t
-
-        # Get spatial measurement for source node and get spatial measurement for destination node and concatenate them
-        edge_spatial_measurements = torch.concat([node_spatial_measurements[subgraph_edge_index[0, :]].unsqueeze(-1), node_spatial_measurements[subgraph_edge_index[1, :]].unsqueeze(-1)], dim = -1) # E x 2
-
-        # Iterate over PDE Params and append those to nodes as well (currently assumes constant parameter)
-        pde_tensors = torch.concatenate([torch.full((edge_spatial_measurements.shape[0], 1), pde_param) for pde_param in pde_params], dim = -1)
-
-        # (E, 4 + however many pde params for the equation)
-        edge_feature_inputs = torch.concatenate([subgraph_edge_disp, edge_spatial_measurements, pde_tensors], dim = -1)
-
-        return edge_feature_inputs, node_spatial_measurements # (E, 4 + however many pde params for the equation)
-
-
     
