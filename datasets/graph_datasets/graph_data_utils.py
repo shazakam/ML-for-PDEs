@@ -91,29 +91,23 @@ def partition_domain_into_subgraphs(X_t : torch.Tensor,
     else:
         H_slide, W_slide = get_subgraph_grid_size(num_subgraph_nodes)
         num_vertical_slices, num_horizontal_slices = (H // H_slide + 1), (W // W_slide + 1)
-        
+
         cur_loc_i = 0
         for _ in range(num_vertical_slices):
             
             if cur_loc_i + H_slide < H:
                 x_subgraph_indices = x_indices[cur_loc_i : cur_loc_i + H_slide]
-                print(f'Current start h location {cur_loc_i}')
-                print(f'Current end  h location {cur_loc_i + H_slide}')
+
             else:
                 x_subgraph_indices = x_indices[-H_slide: ]
-                print(f'Current start w location {-H_slide}')
-                print(f'Current end  wlocation {H - 1}')
 
             cur_loc_j = 0
             for _ in range(num_horizontal_slices):
                 if cur_loc_j + W_slide < W: 
                     y_subgraph_indices = y_indices[cur_loc_j : cur_loc_j + W_slide]
-                    print(f'Current start w location {cur_loc_j}')
-                    print(f'Current end  w location {cur_loc_j + W_slide}')
+
                 else:
                     y_subgraph_indices = y_indices[-W_slide:]
-                    print(f'Current start w location {-W_slide}')
-                    print(f'Current end w location {W-1}')
 
                 subgraph = create_graph_data_obj(x_subgraph_indices, y_subgraph_indices, H, W, r, boundary_condition, X_t, X_t1, pde_params)
                 subgraphs.append(subgraph)
@@ -160,3 +154,39 @@ def get_subgraph_grid_size(num_subgraph_nodes : int):
                     cur_best_pair[1] = cur_val
 
         return cur_best_pair[0], cur_best_pair[1]
+
+def run_total_domain_inference(subgraphs, X, model):
+    H, W = X.shape[0], X.shape[1]
+    H_slide, W_slide = get_subgraph_grid_size(subgraphs[0].x.shape[0])
+    num_horizontal_slices = (W // W_slide + 1)
+
+    y_hat = model(subgraphs).reshape(-1, H_slide, W_slide)
+    print(f'Output shape: {y_hat.shape}')
+
+    cur_i, cur_j = 0, 0
+    for i in range(0, y_hat.shape[0]):
+        sample = y_hat[i, :, :]
+
+        if i < (y_hat.shape[0] - W_slide):
+            if i % (num_horizontal_slices-1) != 0 or i == 0:
+                print(f'X_idx: {cur_i}, {cur_i+H_slide}')
+                print(f'y_idx: {cur_j}, {cur_j+W_slide}')
+
+                X[cur_i: cur_i + H_slide, cur_j : cur_j + W_slide] = sample
+                cur_j += W_slide
+
+            else:
+                X[cur_i: cur_i + H_slide, -W_slide : ] = sample
+                cur_i += H_slide
+                cur_j = 0
+                
+        else:
+            if i % (num_horizontal_slices-1) != 0:
+                X[-H_slide:, cur_j : cur_j + W_slide] = sample
+                cur_j += W_slide
+            else:
+                X[-H_slide:, -W_slide : ] = sample
+                cur_i += H_slide
+                cur_j = 0
+
+    return X
