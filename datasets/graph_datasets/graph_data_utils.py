@@ -89,22 +89,31 @@ def partition_domain_into_subgraphs(X_t : torch.Tensor,
         subgraphs.append(subgraph)
 
     else:
-        cur_loc_i, cur_loc_j = 0,0
         H_slide, W_slide = get_subgraph_grid_size(num_subgraph_nodes)
         num_vertical_slices, num_horizontal_slices = (H // H_slide + 1), (W // W_slide + 1)
-
+        
+        cur_loc_i = 0
         for _ in range(num_vertical_slices):
-
+            
             if cur_loc_i + H_slide < H:
                 x_subgraph_indices = x_indices[cur_loc_i : cur_loc_i + H_slide]
+                print(f'Current start h location {cur_loc_i}')
+                print(f'Current end  h location {cur_loc_i + H_slide}')
             else:
                 x_subgraph_indices = x_indices[-H_slide: ]
+                print(f'Current start w location {-H_slide}')
+                print(f'Current end  wlocation {H - 1}')
 
+            cur_loc_j = 0
             for _ in range(num_horizontal_slices):
                 if cur_loc_j + W_slide < W: 
-                    y_subgraph_indices = y_indices[cur_loc_j : cur_loc_i + W_slide]
+                    y_subgraph_indices = y_indices[cur_loc_j : cur_loc_j + W_slide]
+                    print(f'Current start w location {cur_loc_j}')
+                    print(f'Current end  w location {cur_loc_j + W_slide}')
                 else:
                     y_subgraph_indices = y_indices[-W_slide:]
+                    print(f'Current start w location {-W_slide}')
+                    print(f'Current end w location {W-1}')
 
                 subgraph = create_graph_data_obj(x_subgraph_indices, y_subgraph_indices, H, W, r, boundary_condition, X_t, X_t1, pde_params)
                 subgraphs.append(subgraph)
